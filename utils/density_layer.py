@@ -24,21 +24,31 @@ class Shared_conv(torch.nn.Module):
 
 
 class PNN(torch.nn.Module):
-    def __init__(self, in_features, out_features):
+    def __init__(self, in_features, out_features, num_distr=1):
         super().__init__()
-        self.centers = []
+        self.centers = {}
+        self.out_features = out_features
+        self.num_distr = num_distr
         for i in range(out_features):
-            params = torch.nn.Parameter(torch.zeros(in_features, requires_grad=True))
-            self.register_parameter('center%d' % i, params)
-            self.centers.append(params)
+            self.centers[i] = []
+            for idx in range(num_distr):
+                params = torch.nn.Parameter(torch.zeros(in_features, requires_grad=True))
+                self.register_parameter('center%d%d' % (i,idx), params)
+                self.centers[i].append(params)
 
     def forward(self, x):
         outputs = []
-        for c in self.centers:
-            outputs.append(self.gaussian_activation(((x - c) ** 2).sum(dim=-1)))
+        for out_idx in range(self.out_features):
+            probs = []
+            for distr_idx in range(self.num_distr):
+                probs.append(self.gaussian_activation(((x - self.centers[out_idx][distr_idx]) ** 2).sum(dim=-1)))
+
+            probs = torch.transpose(torch.stack(probs), 0, 1)
+            probs = torch.sum(probs, dim=-1, keepdim=False) / (torch.sum(probs, dim=-1, keepdim=False) \
+                                                                  + self.num_distr - self.num_distr * torch.max(probs, dim=-1, keepdim=False)[0])
+            outputs.append(probs)
 
         outputs = torch.transpose(torch.stack(outputs), 0, 1)
-
         return outputs
 
     def gaussian_activation(self, x, sigma=0.5):
@@ -61,7 +71,7 @@ class Density_estimator(torch.nn.Module):
 
             self.centers.append([mean,sigma])
 
-    def forward(self, x, return_probs=True):
+    def forward(self, x, return_probs=False):
         probs = []
         x = self.dense(x)
         for c in self.centers:

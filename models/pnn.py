@@ -21,7 +21,7 @@ class Sub_module(torch.nn.Module):
         for idx in range(len(hiddens) - 1):
             self.dense_layers.append(torch.nn.Linear(hiddens[idx], hiddens[idx + 1]))
 
-        self.output_layer = PNN(hiddens[-1], output_dim)
+        self.output_layer = Density_estimator(hiddens[-1], output_dim, num_distr=10)
 
     def forward(self, x):
         x = x
