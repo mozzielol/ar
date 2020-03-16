@@ -16,6 +16,7 @@ class Linear_base_model(torch.nn.Module):
         self.build()
 
     def build(self):
+        self.history = {'loss':[], 'test_acc':[]}
         self.layers = torch.nn.ModuleList([])
         for idx in range(len(conf.hidden_units) - 1):
             self.layers.append(torch.nn.Linear(conf.hidden_units[idx], conf.hidden_units[idx + 1]))
@@ -86,7 +87,7 @@ class Linear_base_model(torch.nn.Module):
         self.history['test_acc'].append(correct / total)
 
         if save_model:
-            torch.save(self.state_dict(), './ckp/{}_{}_acc:{}'.format(conf.dataset_name, conf.layer_type,correct/total * 100))
+            torch.save(self.state_dict(), './ckp/{}_{}_{}.pt'.format(conf.dataset_name, conf.layer_type,correct/total * 100))
 
 
 
