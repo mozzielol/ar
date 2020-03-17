@@ -87,7 +87,7 @@ class Linear_base_model(torch.nn.Module):
         self.history['test_acc'].append(correct / total)
 
         if save_model:
-            torch.save(self.state_dict(), './ckp/{}_{}_{}.pt'.format(conf.dataset_name, conf.layer_type,correct/total * 100))
+            torch.save(self.state_dict(), './ckp/NN/{}_{}_{}.pt'.format(conf.dataset_name, conf.layer_type,correct/total * 100))
 
 
 
@@ -101,8 +101,9 @@ class Convolutional_base_model(torch.nn.Module):
     def build(self):
         self.history = {'loss':[], 'test_acc':[]}
         self.layers = torch.nn.ModuleList([])
-        self.layers.append(MNIST_Conv_block())
-        hidden_units = np.insert(conf.hidden_units,0,9216,axis=0)
+        conv_block = MNIST_Conv_block()
+        self.layers.append(conv_block)
+        hidden_units = np.insert(conf.hidden_units,0,conv_block.output_dim,axis=0)
         for idx in range(len(hidden_units) - 1):
             self.layers.append(torch.nn.Linear(hidden_units[idx], hidden_units[idx + 1]))
 
@@ -140,7 +141,6 @@ class Convolutional_base_model(torch.nn.Module):
                 optimizer.zero_grad()
 
                 classification = self(inputs)
-
                 loss = loss_func(classification, F.one_hot(labels, 10).float())
                 loss.backward()
                 optimizer.step()
@@ -152,6 +152,7 @@ class Convolutional_base_model(torch.nn.Module):
                     self.history['loss'].append(loss_value)
                     print('Epoch :{} / {}, loss {:.4f}'.format(e, conf.num_epoch, loss_value), end='\r')
                     loss_value = 0
+            print('')
 
 
     def test(self, testloader, save_model=True):
@@ -171,7 +172,7 @@ class Convolutional_base_model(torch.nn.Module):
         self.history['test_acc'].append(correct / total)
 
         if save_model:
-            torch.save(self.state_dict(), './ckp/{}_{}_{}.pt'.format(conf.dataset_name, conf.layer_type,correct/total * 100))
+            torch.save(self.state_dict(), './ckp/CNN/{}_{}_{}.pt'.format(conf.dataset_name, conf.layer_type,correct/total * 100))
 
 
 

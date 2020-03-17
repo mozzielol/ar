@@ -32,7 +32,7 @@ class PNN(torch.nn.Module):
         for i in range(out_features):
             self.centers[i] = []
             for idx in range(num_distr):
-                params = torch.nn.Parameter(torch.zeros(in_features, requires_grad=True))
+                params = torch.nn.Parameter(torch.rand(in_features, requires_grad=True))
                 self.register_parameter('center%d%d' % (i,idx), params)
                 self.centers[i].append(params)
 
@@ -43,15 +43,19 @@ class PNN(torch.nn.Module):
             for distr_idx in range(self.num_distr):
                 probs.append(self.gaussian_activation(((x - self.centers[out_idx][distr_idx]) ** 2).sum(dim=-1)))
 
-            probs = torch.transpose(torch.stack(probs), 0, 1)
+            probs = torch.stack(probs,1)
+            ##################
+            #diff = torch.max(probs,dim=-1)[0] - torch.min(probs,dim=-1)[0] 
+            #probs = diff / (diff + self.num_distr - self.num_distr * torch.max(probs, dim=-1, keepdim=False)[0])
+            ##################
             probs = torch.sum(probs, dim=-1, keepdim=False) / (torch.sum(probs, dim=-1, keepdim=False) \
                                                                   + self.num_distr - self.num_distr * torch.max(probs, dim=-1, keepdim=False)[0])
             outputs.append(probs)
 
-        outputs = torch.transpose(torch.stack(outputs), 0, 1)
+        outputs =torch.stack(outputs,1)
         return outputs
 
-    def gaussian_activation(self, x, sigma=0.5):
+    def gaussian_activation(self, x, sigma=1.):
         return torch.exp(-x / (2 * sigma * sigma))
 
 
