@@ -36,7 +36,7 @@ class PNN(torch.nn.Module):
                 self.register_parameter('center%d%d' % (i,idx), params)
                 self.centers[i].append(params)
 
-    def forward(self, x, training=False):
+    def forward(self, x):
         outputs = []
         for out_idx in range(self.out_features):
             probs = []
@@ -45,12 +45,12 @@ class PNN(torch.nn.Module):
 
             probs = torch.stack(probs,1)
             ##################
-            if training:
-                diff = self.num_distr * torch.max(probs,dim=-1)[0] - torch.sum(probs,dim=-1)
-                probs = diff / (diff + self.num_distr - self.num_distr * torch.max(probs, dim=-1, keepdim=False)[0])
+            #if training:
+            #    diff = self.num_distr * torch.max(probs,dim=-1)[0] - torch.sum(probs,dim=-1)
+            #    probs = diff / (diff + self.num_distr - self.num_distr * torch.max(probs, dim=-1, keepdim=False)[0])
             ##################
-            else:
-                probs = torch.sum(probs, dim=-1) / (torch.sum(probs, dim=-1) \
+            #else:
+            probs = torch.sum(probs, dim=-1) / (torch.sum(probs, dim=-1) \
                                                                   + self.num_distr - self.num_distr * torch.max(probs, dim=-1)[0])
             outputs.append(probs)
 
@@ -81,7 +81,7 @@ class Density_estimator(torch.nn.Module):
 
                 self.centers[i].append([mean,rho])
 
-    def forward(self, x, training=False):
+    def forward(self, x):
         outputs = []
 
         for out_idx in range(self.out_features):
@@ -95,12 +95,12 @@ class Density_estimator(torch.nn.Module):
             probs = torch.stack(probs,1)
 
             ##################
-            if training:
-                diff = self.num_distr * torch.max(probs,dim=-1)[0] - torch.sum(probs,dim=-1)
-                probs = diff / (diff + self.num_distr - self.num_distr * torch.max(probs, dim=-1, keepdim=False)[0])
+            #if training:
+             #   diff = self.num_distr * torch.max(probs,dim=-1)[0] - torch.sum(probs,dim=-1)
+             #   probs = diff / (diff + self.num_distr - self.num_distr * torch.max(probs, dim=-1, keepdim=False)[0])
             ##################
-            else:
-                probs = torch.sum(probs, dim=-1) / (torch.sum(probs, dim=-1) \
+            #else:
+            probs = torch.sum(probs, dim=-1) / (torch.sum(probs, dim=-1) \
                                                                   + self.num_distr - self.num_distr * torch.max(probs, dim=-1)[0])
             outputs.append(probs)
 

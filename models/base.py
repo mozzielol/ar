@@ -59,7 +59,7 @@ class Base_model(torch.nn.Module, ABC):
             for data in testloader:
                 images, labels = data
                 images = images.view(images.size()[0],-1) if conf.model_type == 'NN' else images
-                outputs = self(images) if conf.layer_type == 'FC' else self(images, training=False)
+                outputs = self(images) 
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
@@ -101,11 +101,11 @@ class Linear_base_model(Base_model):
         
         self.last_layer = last_layer
 
-    def forward(self, x, training=True):
+    def forward(self, x):
         for layer in self.layers:
             x = layer(x).clamp(min=0)
 
-        x = self.last_layer(x) if conf.layer_type == 'FC' else self.last_layer(x, training=training)
+        x = self.last_layer(x) 
         return x
 
 
@@ -141,11 +141,11 @@ class Convolutional_base_model(Base_model):
         print(self)
 
 
-    def forward(self, x, training=True):
+    def forward(self, x):
         for layer in self.layers:
             x = layer(x).clamp(min=0)
 
-        x = self.last_layer(x) if conf.layer_type == 'FC' else self.last_layer(x, training=training)
+        x = self.last_layer(x) 
         return x
 
 

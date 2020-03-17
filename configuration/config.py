@@ -100,7 +100,26 @@ class Config(object):
 	def layer_type(self,value):
 		self.cfg.set('Last Layer Setting', 'layer_type', value)
 
-	
+	@layer_type.setter
+	def layer_type(self,value):
+		self.cfg.set('Last Layer Setting', 'layer_type', value)
+
+
+	@model_type.setter
+	def model_type(self,value):
+		self.cfg.set('Model Setting', 'model_type', value)
+
+	@hidden_units.setter
+	def hidden_units(self,value):
+		self.cfg.set('Model Setting', 'hidden_units', value)
+
+
+
+
+
+
+
+
 	
 	
 	
