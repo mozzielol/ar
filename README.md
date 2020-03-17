@@ -2,13 +2,8 @@
 
 modify 'default.ini' to change the configuration. 
 
-In the section 'Last layer Setting'
+saved models: in the `ckp` folder
 
-* layer_type:
-  * PNN: estimate the desity with default sigma = 0.5
-  * FC: Normal fully-connected layer
-  * DE(TODO): estimate the desity with trainable sigma
-  
-
-## TODO
-convolutiaonl model
+|- num_distr=1: one distribution in the output layer (DE and PNN)
+ 
+|- num_distr=2: two distribution in the output layer (DE and PNN)
