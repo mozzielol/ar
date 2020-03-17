@@ -63,33 +63,40 @@ class PNN(torch.nn.Module):
 class Density_estimator(torch.nn.Module):
     def __init__(self, in_features, out_features=200, num_distr=1):
         super().__init__()
-        self.centers = []
+        self.centers = {}
         self.num_distr = num_distr
-        self.dense = nn.Linear(in_features,out_features)
-        for i in range(num_distr):
-            mean = torch.nn.Parameter(torch.rand(out_features, requires_grad=True))
-            self.register_parameter('mean%d' % i, mean)
-            rho = torch.nn.Parameter(torch.rand(out_features, requires_grad=True))
-            sigma = torch.log(1 + torch.exp(rho))
-            self.register_parameter('rho%d' % i, rho)
+        self.in_features = in_features
+        self.out_features = out_features
+        #self.dense = nn.Linear(in_features,out_features)
 
-            self.centers.append([mean,sigma])
+        for i in range(out_features):
+            self.centers[i] = []
+            for idx in range(num_distr):
+                mean = torch.nn.Parameter(torch.rand(in_features, requires_grad=True))
+                self.register_parameter('mean%d%d' % (idx,i), mean)
+                rho = torch.nn.Parameter(torch.rand(in_features, requires_grad=True))
+                self.register_parameter('rho%d%d' % (idx,i), rho)
 
-    def forward(self, x, return_probs=False):
-        probs = []
-        x = self.dense(x)
-        for c in self.centers:
-            estimate = (x - c[0])**2 / c[1]
-            likelihood = self.gaussian_activation(estimate)
-            probs.append(likelihood)
+                self.centers[i].append([mean,rho])
 
-        probs = torch.transpose(torch.stack(probs), 0, 1)
+    def forward(self, x):
+        outputs = []
 
-        if return_probs:
-            probs = torch.sum(probs, dim=-1, keepdim=True) / (torch.sum(probs, dim=-1, keepdim=True) \
-                                                                  + self.num_distr - self.num_distr * torch.max(probs, dim=-1, keepdim=True)[0])
+        for out_idx in range(self.out_features):
+            probs = []
+            for distr_idx in range(self.num_distr):
+                sigma = torch.log(1 + torch.exp(self.centers[out_idx][distr_idx][1]))
+                estimate = (x - self.centers[out_idx][distr_idx][0])**2 /( 2*sigma*sigma)
+                probs.append(self.gaussian_activation(estimate))
 
-        return probs
+
+            probs = torch.stack(probs,1)
+            probs = torch.sum(probs, dim=-1) / (torch.sum(probs, dim=-1) \
+                                                                  + self.num_distr - self.num_distr * torch.max(probs, dim=-1)[0])
+            outputs.append(probs)
+
+        outputs =torch.stack(outputs,1)
+        return outputs
 
     def gaussian_activation(self, x):
         return torch.exp(-torch.sum(x,dim=-1))

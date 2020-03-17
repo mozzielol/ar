@@ -7,8 +7,76 @@ from torch.optim.lr_scheduler import StepLR
 from utils.density_layer import PNN, Density_estimator
 from configuration import conf
 from utils.conv_layers import MNIST_Conv_block
+from abc import ABC, abstractmethod
+from tqdm import tqdm
 
-class Linear_base_model(torch.nn.Module):
+class Base_model(torch.nn.Module, ABC):
+    """docstring for Base_model"""
+    def __init__(self):
+        super(Base_model, self).__init__()
+        self.build()
+
+    @abstractmethod
+    def build(self):
+        raise NotImplementedError
+
+    def train(self, trainloader):
+        loss_func = nn.BCELoss()
+        optimizer = optim.Adam(self.parameters())
+        self.history = {'loss':[], 'test_acc':[]}
+
+        for e in range(conf.num_epoch):
+            loss_value = 0.0
+            enum = tqdm(enumerate(trainloader, 0))
+            for i, data in enum:
+                inputs, labels = data
+                inputs = inputs.view(inputs.size()[0],-1)
+                optimizer.zero_grad()
+
+                classification = self(inputs)
+
+                loss = loss_func(classification, F.one_hot(labels, 10).float())
+                loss.backward()
+                optimizer.step()
+
+                loss_value += loss.item()
+
+                if i % 100 == 0:
+                    loss_value /= 200
+                    self.history['loss'].append(loss_value)
+                    msg = 'Epoch :{} / {}, loss {:.4f}'.format(e+1, conf.num_epoch, loss_value)
+                    #print('Epoch :{} / {}, loss {:.4f}'.format(e, conf.num_epoch, loss_value), end='\r')
+                    loss_value = 0
+                    enum.set_description(msg)
+            print('')
+
+
+    def test(self, testloader, save_model=True):
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for data in testloader:
+                images, labels = data
+                images = images.view(images.size()[0],-1)
+                outputs = self(images)
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+
+        print('Accuracy of the network on the %d test images: %d %%' % (total,
+                100 * correct / total))
+
+        self.history['test_acc'].append(correct / total)
+
+        if save_model:
+            torch.save(self.state_dict(), './ckp/{}/{}_{}_{}.pt'.format(conf.model_type,conf.dataset_name, conf.layer_type,correct/total * 100))
+
+
+
+
+
+
+class Linear_base_model(Base_model):
     """docstring for Linear_base_model"""
     def __init__(self):
         super(Linear_base_model, self).__init__()
@@ -42,56 +110,10 @@ class Linear_base_model(torch.nn.Module):
         return x
 
 
-    def train(self, trainloader):
-        loss_func = nn.BCELoss()
-        optimizer = optim.Adam(self.parameters())
-        self.history = {'loss':[], 'test_acc':[]}
-
-        for e in range(conf.num_epoch):
-            loss_value = 0.0
-            for i, data in enumerate(trainloader, 0):
-                inputs, labels = data
-                inputs = inputs.view(inputs.size()[0],-1)
-                optimizer.zero_grad()
-
-                classification = self(inputs)
-
-                loss = loss_func(classification, F.one_hot(labels, 10).float())
-                loss.backward()
-                optimizer.step()
-
-                loss_value += loss.item()
-
-                if i % 200 == 0:
-                    loss_value /= 200
-                    self.history['loss'].append(loss_value)
-                    print('Epoch :{} / {}, loss {:.4f}'.format(e, conf.num_epoch, loss_value), end='\r')
-                    loss_value = 0
-
-
-    def test(self, testloader, save_model=True):
-        correct = 0
-        total = 0
-        with torch.no_grad():
-            for data in testloader:
-                images, labels = data
-                images = images.view(images.size()[0],-1)
-                outputs = self(images)
-                _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
-
-        print('Accuracy of the network on the %d test images: %d %%' % (total,
-                100 * correct / total))
-
-        self.history['test_acc'].append(correct / total)
-
-        if save_model:
-            torch.save(self.state_dict(), './ckp/NN/{}_{}_{}.pt'.format(conf.dataset_name, conf.layer_type,correct/total * 100))
 
 
 
-class Convolutional_base_model(torch.nn.Module):
+class Convolutional_base_model(Base_model):
     """docstring for Linear_base_model"""
     def __init__(self):
         super(Convolutional_base_model, self).__init__()
@@ -127,53 +149,6 @@ class Convolutional_base_model(torch.nn.Module):
 
         x = self.last_layer(x)
         return x
-
-
-    def train(self, trainloader):
-        loss_func = nn.BCELoss()
-        optimizer = optim.Adam(self.parameters())
-        self.history = {'loss':[], 'test_acc':[]}
-
-        for e in range(conf.num_epoch):
-            loss_value = 0.0
-            for i, data in enumerate(trainloader, 0):
-                inputs, labels = data
-                optimizer.zero_grad()
-
-                classification = self(inputs)
-                loss = loss_func(classification, F.one_hot(labels, 10).float())
-                loss.backward()
-                optimizer.step()
-
-                loss_value += loss.item()
-
-                if i % 200 == 0:
-                    loss_value /= 200
-                    self.history['loss'].append(loss_value)
-                    print('Epoch :{} / {}, loss {:.4f}'.format(e, conf.num_epoch, loss_value), end='\r')
-                    loss_value = 0
-            print('')
-
-
-    def test(self, testloader, save_model=True):
-        correct = 0
-        total = 0
-        with torch.no_grad():
-            for data in testloader:
-                images, labels = data
-                outputs = self(images)
-                _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
-
-        print('Accuracy of the network on the %d test images: %d %%' % (total,
-                100 * correct / total))
-
-        self.history['test_acc'].append(correct / total)
-
-        if save_model:
-            torch.save(self.state_dict(), './ckp/CNN/{}_{}_{}.pt'.format(conf.dataset_name, conf.layer_type,correct/total * 100))
-
 
 
 
