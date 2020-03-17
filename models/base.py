@@ -21,7 +21,7 @@ class Base_model(torch.nn.Module, ABC):
         raise NotImplementedError
 
     def train(self, trainloader):
-        loss_func = nn.BCELoss()
+        loss_func = nn.CrossEntropyLoss() if conf.layer_type == 'FC' else nn.BCELoss()
         optimizer = optim.Adam(self.parameters())
         self.history = {'loss':[], 'test_acc':[]}
 
@@ -35,7 +35,8 @@ class Base_model(torch.nn.Module, ABC):
 
                 classification = self(inputs)
 
-                loss = loss_func(classification, F.one_hot(labels, 10).float())
+                lables = labels if conf.layer_type == 'FC' else F.one_hot(labels, 10).float() 
+                loss = loss_func(classification, labels)
                 loss.backward()
                 optimizer.step()
 
@@ -96,11 +97,9 @@ class Linear_base_model(Base_model):
         elif layer_type == 'DE':
             last_layer = Density_estimator(conf.hidden_units[-1], conf.output_units, num_distr=conf.num_distr)
         elif layer_type == 'FC':
-            self.layers.append(torch.nn.Linear(conf.hidden_units[-1], conf.output_units))
-            last_layer = torch.nn.Softmax(dim=-1)
+            last_layer = torch.nn.Linear(conf.hidden_units[-1], conf.output_units)
         
         self.last_layer = last_layer
-
 
     def forward(self, x):
         for layer in self.layers:
@@ -136,8 +135,7 @@ class Convolutional_base_model(Base_model):
         elif layer_type == 'DE':
             last_layer = Density_estimator(hidden_units[-1], conf.output_units, num_distr=conf.num_distr)
         elif layer_type == 'FC':
-            self.layers.append(torch.nn.Linear(hidden_units[-1], conf.output_units))
-            last_layer = torch.nn.Softmax(dim=-1)
+            last_layer = torch.nn.Linear(hidden_units[-1], conf.output_units)
         
         self.last_layer = last_layer
         print(self)
