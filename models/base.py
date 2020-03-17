@@ -30,7 +30,7 @@ class Base_model(torch.nn.Module, ABC):
             enum = tqdm(enumerate(trainloader, 0))
             for i, data in enum:
                 inputs, labels = data
-                inputs = inputs.view(inputs.size()[0],-1)
+                inputs = inputs.view(inputs.size()[0],-1) if conf.model_type == 'NN' else inputs
                 optimizer.zero_grad()
 
                 classification = self(inputs)
@@ -58,8 +58,8 @@ class Base_model(torch.nn.Module, ABC):
         with torch.no_grad():
             for data in testloader:
                 images, labels = data
-                images = images.view(images.size()[0],-1)
-                outputs = self(images, training=True)
+                images = images.view(images.size()[0],-1) if conf.model_type == 'NN' else images
+                outputs = self(images) if conf.layer_type == 'FC' else self(images, training=False)
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
@@ -70,7 +70,7 @@ class Base_model(torch.nn.Module, ABC):
         self.history['test_acc'].append(correct / total)
 
         if save_model:
-            torch.save(self.state_dict(), './ckp/{}/{}_{}_{}.pt'.format(conf.model_type,conf.dataset_name, conf.layer_type,correct/total * 100))
+            torch.save(self.state_dict(), './ckp/num_distr={}/{}/{}_{}.pt'.format(conf.num_distr,conf.model_type,conf.dataset_name, conf.layer_type))
 
 
 
@@ -105,7 +105,7 @@ class Linear_base_model(Base_model):
         for layer in self.layers:
             x = layer(x).clamp(min=0)
 
-        x = self.last_layer(x, training=training)
+        x = self.last_layer(x) if conf.layer_type == 'FC' else self.last_layer(x, training=training)
         return x
 
 
@@ -145,7 +145,7 @@ class Convolutional_base_model(Base_model):
         for layer in self.layers:
             x = layer(x).clamp(min=0)
 
-        x = self.last_layer(x, training=training)
+        x = self.last_layer(x) if conf.layer_type == 'FC' else self.last_layer(x, training=training)
         return x
 
 

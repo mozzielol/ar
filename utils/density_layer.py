@@ -36,7 +36,7 @@ class PNN(torch.nn.Module):
                 self.register_parameter('center%d%d' % (i,idx), params)
                 self.centers[i].append(params)
 
-    def forward(self, x, training=True):
+    def forward(self, x, training=False):
         outputs = []
         for out_idx in range(self.out_features):
             probs = []
@@ -45,11 +45,13 @@ class PNN(torch.nn.Module):
 
             probs = torch.stack(probs,1)
             ##################
-            #diff = torch.max(probs,dim=-1)[0] - torch.min(probs,dim=-1)[0] 
-            #probs = diff / (diff + self.num_distr - self.num_distr * torch.max(probs, dim=-1, keepdim=False)[0])
+            if training:
+                diff = self.num_distr * torch.max(probs,dim=-1)[0] - torch.sum(probs,dim=-1)
+                probs = diff / (diff + self.num_distr - self.num_distr * torch.max(probs, dim=-1, keepdim=False)[0])
             ##################
-            probs = torch.sum(probs, dim=-1, keepdim=False) / (torch.sum(probs, dim=-1, keepdim=False) \
-                                                                  + self.num_distr - self.num_distr * torch.max(probs, dim=-1, keepdim=False)[0])
+            else:
+                probs = torch.sum(probs, dim=-1) / (torch.sum(probs, dim=-1) \
+                                                                  + self.num_distr - self.num_distr * torch.max(probs, dim=-1)[0])
             outputs.append(probs)
 
         outputs =torch.stack(outputs,1)
@@ -79,7 +81,7 @@ class Density_estimator(torch.nn.Module):
 
                 self.centers[i].append([mean,rho])
 
-    def forward(self, x, training=True):
+    def forward(self, x, training=False):
         outputs = []
 
         for out_idx in range(self.out_features):
