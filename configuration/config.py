@@ -92,6 +92,13 @@ class Config(object):
 		return self.cfg.get('Training Setting', 'optimizer')
 
 
+	@num_distr.setter
+	def num_distr(self,value):
+		self.cfg.set('Last Layer Setting', 'num_distr', value)
+
+	@layer_type.setter
+	def layer_type(self,value):
+		self.cfg.set('Last Layer Setting', 'layer_type', value)
 
 	
 	

@@ -35,7 +35,7 @@ class Base_model(torch.nn.Module, ABC):
 
                 classification = self(inputs)
 
-                lables = labels if conf.layer_type == 'FC' else F.one_hot(labels, 10).float() 
+                labels = labels if conf.layer_type == 'FC' else F.one_hot(labels, 10).float() 
                 loss = loss_func(classification, labels)
                 loss.backward()
                 optimizer.step()
@@ -59,12 +59,12 @@ class Base_model(torch.nn.Module, ABC):
             for data in testloader:
                 images, labels = data
                 images = images.view(images.size()[0],-1)
-                outputs = self(images)
+                outputs = self(images, training=True)
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
 
-        print('Accuracy of the network on the %d test images: %d %%' % (total,
+        print('Accuracy of the network on the %d test images: %.4f %%' % (total,
                 100 * correct / total))
 
         self.history['test_acc'].append(correct / total)
@@ -101,11 +101,11 @@ class Linear_base_model(Base_model):
         
         self.last_layer = last_layer
 
-    def forward(self, x):
+    def forward(self, x, training=True):
         for layer in self.layers:
             x = layer(x).clamp(min=0)
 
-        x = self.last_layer(x)
+        x = self.last_layer(x, training=training)
         return x
 
 
@@ -141,11 +141,11 @@ class Convolutional_base_model(Base_model):
         print(self)
 
 
-    def forward(self, x):
+    def forward(self, x, training=True):
         for layer in self.layers:
             x = layer(x).clamp(min=0)
 
-        x = self.last_layer(x)
+        x = self.last_layer(x, training=training)
         return x
 
 

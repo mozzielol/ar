@@ -36,7 +36,7 @@ class PNN(torch.nn.Module):
                 self.register_parameter('center%d%d' % (i,idx), params)
                 self.centers[i].append(params)
 
-    def forward(self, x):
+    def forward(self, x, training=True):
         outputs = []
         for out_idx in range(self.out_features):
             probs = []
@@ -79,7 +79,7 @@ class Density_estimator(torch.nn.Module):
 
                 self.centers[i].append([mean,rho])
 
-    def forward(self, x, training=False):
+    def forward(self, x, training=True):
         outputs = []
 
         for out_idx in range(self.out_features):
