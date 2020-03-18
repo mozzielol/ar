@@ -22,7 +22,7 @@ class Base_model(torch.nn.Module, ABC):
         raise NotImplementedError
 
     def train(self, trainloader):
-        loss_func = nn.CrossEntropyLoss() if conf.layer_type == 'FFC' else nn.BCELoss()
+        loss_func = nn.CrossEntropyLoss() if conf.layer_type == 'FC' else nn.BCELoss()
         optimizer = optim.Adam(self.parameters())
         self.history = {'loss':[], 'test_acc':[]}
 
@@ -36,7 +36,7 @@ class Base_model(torch.nn.Module, ABC):
 
                 classification = self(inputs)
 
-                labels = labels if conf.layer_type == 'FFC' else F.one_hot(labels, 10).float() 
+                labels = labels if conf.layer_type == 'FC' else F.one_hot(labels, 10).float() 
                 loss = loss_func(classification, labels)
                 loss.backward()
                 optimizer.step()
@@ -108,7 +108,7 @@ class Linear_base_model(Base_model):
 
         x = self.last_layer(x) 
 
-        x = F.sigmoid(x)
+        #x = F.sigmoid(x)
         return x
 
 

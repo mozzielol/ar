@@ -28,10 +28,15 @@ def compute_confidence(preds, head='FC'):
 # Load pretrained model
 HEAD = 'PNN'
 FEATURE = 'NN'
-NUM_DISTR = 'num_distr=1'
+NUM_DISTR = 'num_distr=2'
 
 model_directory = os.path.join('ckp', NUM_DISTR, FEATURE)
 conf.num_distr = NUM_DISTR[-1]
+
+if FEATURE == 'CNN':
+    conf.model_type, conf.hidden_units = 'CNN', '100'
+else:
+    conf.model_type, conf.hidden_units = 'NN', '784,200,200'
 
 if HEAD == 'DE':
     CHECKPOINT = os.path.join(model_directory, 'mnist_DE.pt')
@@ -103,23 +108,3 @@ for eps in np.linspace(.3, .01, 30):
 
     print("eps = %f, mean accuracy on adversarial test examples: %f ~ %f, mean confidence %f" %
           (eps, np.mean(accs), np.std(accs), np.mean(confs)))
-
-# PGD
-# for eps in [0.2, 0.1]:
-#     for max_iter in [10, 20, 30, 40, 50]:
-#         accs = []
-#         for repeat in range(1):
-#             print("eps = %f, step = %d, run %d" % (eps, max_iter, repeat))
-#             # Step 6: Generate adversarial test examples
-#             attack = ProjectedGradientDescent(classifier=classifier, eps=eps, eps_step=eps/3, max_iter=max_iter)
-#             x_test_adv = attack.generate(x=x_test)
-#
-#             # Step 7: Evaluate the ART classifier on adversarial test examples
-#             predictions = classifier.predict(x_test_adv)
-#             accuracy = np.sum(np.argmax(predictions, axis=1) == np.argmax(y_test, axis=1)) / len(y_test)
-#             print("Accuracy on adversarial test examples: {}%".format(accuracy * 100))
-#
-#             accs.append(accuracy)
-#
-#         print("eps = %f, step = %d, mean accuracy on adversarial test examples: %f ~ %f" %
-#               (eps, max_iter, np.mean(accs), np.std(accs)))
