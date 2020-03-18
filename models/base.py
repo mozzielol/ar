@@ -22,7 +22,7 @@ class Base_model(torch.nn.Module, ABC):
         raise NotImplementedError
 
     def train(self, trainloader):
-        loss_func = nn.CrossEntropyLoss() if conf.layer_type == 'FC' else nn.BCELoss()
+        loss_func = nn.CrossEntropyLoss() if conf.layer_type == 'FFC' else nn.BCELoss()
         optimizer = optim.Adam(self.parameters())
         self.history = {'loss':[], 'test_acc':[]}
 
@@ -36,7 +36,7 @@ class Base_model(torch.nn.Module, ABC):
 
                 classification = self(inputs)
 
-                labels = labels if conf.layer_type == 'FC' else F.one_hot(labels, 10).float() 
+                labels = labels if conf.layer_type == 'FFC' else F.one_hot(labels, 10).float() 
                 loss = loss_func(classification, labels)
                 loss.backward()
                 optimizer.step()
@@ -71,7 +71,7 @@ class Base_model(torch.nn.Module, ABC):
         self.history['test_acc'].append(correct / total)
 
         if save_model:
-            torch.save(self.state_dict(), './ckp/num_distr={}/{}/pytorch_{}_{}.pt'.format(conf.num_distr,conf.model_type,conf.dataset_name, conf.layer_type))
+            torch.save(self.state_dict(), './ckp/num_distr={}/{}/Sigmoid_{}_{}.pt'.format(conf.num_distr,conf.model_type,conf.dataset_name, conf.layer_type))
 
 
 
@@ -98,7 +98,7 @@ class Linear_base_model(Base_model):
         elif layer_type == 'DE':
             last_layer = Density_estimator(conf.hidden_units[-1], conf.output_units, num_distr=conf.num_distr)
         elif layer_type == 'FC':
-            last_layer = FC_layer_without_w(conf.hidden_units[-1], conf.output_units)
+            last_layer = torch.nn.Linear(conf.hidden_units[-1], conf.output_units)
         
         self.last_layer = last_layer
 
@@ -107,6 +107,8 @@ class Linear_base_model(Base_model):
             x = layer(x).clamp(min=0)
 
         x = self.last_layer(x) 
+
+        x = F.sigmoid(x)
         return x
 
 

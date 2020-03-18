@@ -7,7 +7,7 @@ from utils.visualise import *
 
 
 
-# Load the model e.g. model.load_state_dict(torch.load('./ckp/mnist_PNN_96.92.pt'))
+# Load the model e.g. model.load_state_dict(torch.load('./ckp/num_distr=1/NN/mnist_FC.pt'))
 
 trainloader, testloader = load_mnist()
 
