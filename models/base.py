@@ -7,6 +7,7 @@ from torch.optim.lr_scheduler import StepLR
 from utils.density_layer import PNN, Density_estimator
 from configuration import conf
 from utils.conv_layers import MNIST_Conv_block, MNIST_Conv_block_pytorch
+from utils.fc_layers import FC_layer_without_w
 from abc import ABC, abstractmethod
 from tqdm import tqdm
 
@@ -97,7 +98,7 @@ class Linear_base_model(Base_model):
         elif layer_type == 'DE':
             last_layer = Density_estimator(conf.hidden_units[-1], conf.output_units, num_distr=conf.num_distr)
         elif layer_type == 'FC':
-            last_layer = torch.nn.Linear(conf.hidden_units[-1], conf.output_units)
+            last_layer = FC_layer_without_w(conf.hidden_units[-1], conf.output_units)
         
         self.last_layer = last_layer
 

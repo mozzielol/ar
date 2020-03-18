@@ -1,8 +1,5 @@
 import torch.nn.functional as F
 import numpy as np
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.optim.lr_scheduler import StepLR
 import torch
 import torch.nn as nn
 
