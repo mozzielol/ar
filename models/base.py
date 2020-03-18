@@ -6,7 +6,7 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 from utils.density_layer import PNN, Density_estimator
 from configuration import conf
-from utils.conv_layers import MNIST_Conv_block
+from utils.conv_layers import MNIST_Conv_block, MNIST_Conv_block_pytorch
 from abc import ABC, abstractmethod
 from tqdm import tqdm
 
@@ -70,7 +70,7 @@ class Base_model(torch.nn.Module, ABC):
         self.history['test_acc'].append(correct / total)
 
         if save_model:
-            torch.save(self.state_dict(), './ckp/num_distr={}/{}/{}_{}.pt'.format(conf.num_distr,conf.model_type,conf.dataset_name, conf.layer_type))
+            torch.save(self.state_dict(), './ckp/num_distr={}/{}/pytorch_{}_{}.pt'.format(conf.num_distr,conf.model_type,conf.dataset_name, conf.layer_type))
 
 
 
@@ -122,7 +122,7 @@ class Convolutional_base_model(Base_model):
     def build(self):
         self.history = {'loss':[], 'test_acc':[]}
         self.layers = torch.nn.ModuleList([])
-        conv_block = MNIST_Conv_block()
+        conv_block = MNIST_Conv_block_pytorch()
         self.layers.append(conv_block)
         hidden_units = np.insert(conf.hidden_units,0,conv_block.output_dim,axis=0)
         for idx in range(len(hidden_units) - 1):
