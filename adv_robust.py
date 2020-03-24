@@ -15,6 +15,16 @@ from art.utils import load_mnist as art_load_mnist
 
 np.random.seed(2020)
 
+try:
+    import cPickle as pickle
+except ImportError:  # python 3.x
+    import pickle
+
+
+def save_his():
+    with open(filename, 'wb') as outfile:
+        pickle.dump(history, outfile, protocol=pickle.HIGHEST_PROTOCOL)
+
 
 class BCEOneHotLoss(nn.BCELoss):
     def forward(self, input, target):
@@ -29,6 +39,11 @@ def compute_confidence(preds, head='FC'):
 HEAD = 'DE'
 FEATURE = 'NN'
 NUM_DISTR = 'num_distr=5'
+
+filename = 'history/{}_{}'.format(HEAD,NUM_DISTR)
+history = {}
+save_his()
+
 
 model_directory = os.path.join('ckp', NUM_DISTR, FEATURE)
 conf.num_distr = NUM_DISTR[-1]
@@ -55,7 +70,7 @@ model = Convolutional_base_model() if FEATURE == 'CNN' else Linear_base_model()
 
 checkpoint = torch.load(CHECKPOINT)
 model.load_state_dict(checkpoint)
-model.last_layer.training = False
+model.last_layer.training = True
 # Step 1: Load the MNIST dataset
 (x_train, y_train), (x_test, y_test), min_pixel_value, max_pixel_value = art_load_mnist()
 # Step 1a: Transpose to N x D format
@@ -88,7 +103,8 @@ confidence = np.mean(compute_confidence(predictions, HEAD))
 print("Average confidence on benign test examples: %f" % confidence)
 
 # FGSM
-for eps in [0.3]:#np.linspace(.01, .3, 30):
+history = {}
+for eps in np.linspace(.01, .3, 30):
     accs, confs = [], []
     for repeat in range(1):
         print("eps = %f, run %d" % (eps, repeat))
@@ -105,6 +121,9 @@ for eps in [0.3]:#np.linspace(.01, .3, 30):
 
         accs.append(accuracy)
         confs.append(confidence)
+        history[eps] = accs
 
     print("eps = %f, mean accuracy on adversarial test examples: %f ~ %f, mean confidence %f" %
           (eps, np.mean(accs), np.std(accs), np.mean(confs)))
+
+save_his()
