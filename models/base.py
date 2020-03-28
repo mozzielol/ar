@@ -130,7 +130,7 @@ class Convolutional_base_model(Base_model):
     def build(self):
         self.history = {'loss':[], 'test_acc':[]}
         self.layers = torch.nn.ModuleList([])
-        conv_block = MNIST_Conv_block_pytorch()
+        conv_block = MNIST_Conv_block()
         self.layers.append(conv_block)
         hidden_units = np.insert(conf.hidden_units,0,conv_block.output_dim,axis=0)
         for idx in range(len(hidden_units) - 1):
