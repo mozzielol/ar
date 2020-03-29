@@ -20,7 +20,7 @@ for t in layer_type:
 	elif conf.model_type == 'NN':
 	    model = Linear_base_model()
 
-	model.train(trainloader)
+	model.train_model(trainloader)
 	print(model)
 
-	model.test(testloader)
+	model.test_model(testloader)

@@ -21,7 +21,7 @@ class Base_model(torch.nn.Module, ABC):
     def build(self):
         raise NotImplementedError
 
-    def train(self, trainloader):
+    def train_model(self, trainloader):
         loss_func = nn.CrossEntropyLoss() if conf.layer_type == 'FC' else nn.BCELoss()
         optimizer = optim.Adam(self.parameters())
         self.history = {'loss':[], 'test_acc':[]}
@@ -54,7 +54,7 @@ class Base_model(torch.nn.Module, ABC):
             print('')
 
 
-    def test(self, testloader, save_model=True):
+    def test_model(self, testloader, save_model=True):
         correct = 0
         total = 0
         try:

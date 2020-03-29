@@ -20,8 +20,7 @@ import numpy as np
 """
 
 class Config(object):
-	def __init__(self,config_file=None):
-		base_path = './'
+	def __init__(self, config_file=None, base_path = './'):
 		default_path = base_path + 'default.ini'
 		self.cfg = configparser.ConfigParser()
 		self.cfg.read(default_path)
