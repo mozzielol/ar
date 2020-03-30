@@ -109,6 +109,19 @@ class Density_estimator(torch.nn.Module):
         outputs =torch.stack(outputs,1)
         return outputs
 
+    def get_distr_index(self, x):
+        outputs = []
+        for out_idx in range(self.out_features):
+            probs = []
+            for distr_idx in range(self.num_distr):
+                sigma = torch.log(1 + torch.exp(self.centers[out_idx][distr_idx][1]))
+                estimate = (x - self.centers[out_idx][distr_idx][0])**2 /( 2*sigma*sigma)
+                probs.append(self.gaussian_activation(estimate))
+            probs = torch.stack(probs,1)
+            outputs.append(torch.argmax(probs, dim=-1))
+        outputs = torch.stack(outputs,1)
+        return outputs
+
     def gaussian_activation(self, x):
         return torch.exp(-torch.sum(x,dim=-1))
 

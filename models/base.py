@@ -79,8 +79,27 @@ class Base_model(torch.nn.Module, ABC):
             torch.save(self.state_dict(), './ckp/num_distr={}/{}/{}_{}.pt'.format(conf.num_distr,conf.model_type,conf.dataset_name, conf.layer_type))
 
 
+    def get_distr_index(self, testloader):
+        assert conf.layer_type == 'DE', 'only DE get this function at the moment'
+        predicted_index = []
+        classes = []
+        with torch.no_grad():
+            for data in testloader:
+                images, labels = data
+                images = images.view(images.size()[0],-1) if conf.model_type == 'NN' else images
+                outputs = self.index_forward(images) 
+                predicted_index.append(outputs[np.arange(images.shape[0]), labels])
+                classes.append(labels)
 
+        return np.concatenate(predicted_index), np.concatenate(classes)
 
+    def index_forward(self, x):
+        for layer in self.layers:
+            x = layer(x).clamp(min=0)
+
+        x = self.last_layer.get_distr_index(x)
+
+        return x
 
 
 class Linear_base_model(Base_model):
@@ -115,6 +134,7 @@ class Linear_base_model(Base_model):
 
         #x = F.sigmoid(x)
         return x
+
 
 
 
