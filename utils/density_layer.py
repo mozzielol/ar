@@ -64,7 +64,7 @@ class PNN(torch.nn.Module):
 class Density_estimator(torch.nn.Module):
     def __init__(self, in_features, out_features=200, num_distr=1):
         super().__init__()
-        self.training = True
+        self.training = False
         self.centers = {}
         self.num_distr = num_distr
         self.in_features = in_features
@@ -78,7 +78,6 @@ class Density_estimator(torch.nn.Module):
                 self.register_parameter('mean%d%d' % (idx,i), mean)
                 rho = torch.nn.Parameter(torch.rand(in_features, requires_grad=True))
                 self.register_parameter('rho%d%d' % (idx,i), rho)
-
                 self.centers[i].append([mean,rho])
 
     def forward(self, x):

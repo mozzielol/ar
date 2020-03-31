@@ -58,7 +58,7 @@ class Base_model(torch.nn.Module, ABC):
         correct = 0
         total = 0
         try:
-            self.last_layer.training = True
+            self.last_layer.training = False
         except:
             pass
         with torch.no_grad():
