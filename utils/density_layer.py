@@ -126,7 +126,78 @@ class Density_estimator(torch.nn.Module):
 
 
 
+class Dynamic_estimator(torch.nn.Module):
+    def __init__(self, in_features, out_features=200, num_distr=1):
+        super().__init__()
+        self.training = True
+        self.centers = {}
+        self.num_distr = num_distr
+        self.in_features = in_features
+        self.out_features = out_features
+        #self.dense = nn.Linear(in_features,out_features)
 
+        for i in range(out_features):
+            self.centers[i] = []
+            for idx in range(num_distr):
+                mean = torch.nn.Parameter(torch.rand(in_features, requires_grad=True))
+                self.register_parameter('mean%d%d' % (idx,i), mean)
+                rho = torch.nn.Parameter(torch.rand(in_features, requires_grad=True))
+                self.register_parameter('rho%d%d' % (idx,i), rho)
+                self.centers[i].append([mean,rho])
+
+    def forward(self, x):
+        outputs = []
+        #self.reg = []
+        for out_idx in range(self.out_features):
+            probs = []
+            for distr_idx in range(self.num_distr):
+                sigma = torch.log(1 + torch.exp(self.centers[out_idx][distr_idx][1]))
+                estimate = (x - self.centers[out_idx][distr_idx][0])**2 /( 2*sigma*sigma)
+                w = probs[distr_idx-1] - 0.8 if distr_idx > 1 else 1
+                w = w.clamp(min=0.0) if distr_idx > 1 else 1
+                P = self.gaussian_activation(estimate)*w
+                probs.append(P)
+
+
+            probs = torch.stack(probs,1)
+
+            ##################
+            if self.training:
+                #diff = self.num_distr * torch.max(probs,dim=-1)[0] - torch.sum(probs,dim=-1)
+                #probs = diff / (diff + self.num_distr - self.num_distr * torch.max(probs, dim=-1, keepdim=False)[0])
+                probs = (torch.max(probs,dim=-1)[0] * (self.num_distr+1) - torch.sum(probs,dim=-1))/self.num_distr 
+            #self.reg.append(1-(torch.max(probs,dim=-1)[0] * (self.num_distr+1) - torch.sum(probs,dim=-1))/self.num_distr )
+            ##################
+            else:
+                probs = torch.sum(probs, dim=-1) / (torch.sum(probs, dim=-1) \
+                                                                  + self.num_distr - self.num_distr * torch.max(probs, dim=-1)[0])
+            outputs.append(probs)
+        #self.reg = torch.stack(self.reg,1)
+        outputs =torch.stack(outputs,1)
+        return outputs
+#uti
+#agitaion
+#activaties
+# MCM to create the entropy
+# keep updating based on the activaties of the users
+#Find the change point
+
+
+    def get_distr_index(self, x):
+        outputs = []
+        for out_idx in range(self.out_features):
+            probs = []
+            for distr_idx in range(self.num_distr):
+                sigma = torch.log(1 + torch.exp(self.centers[out_idx][distr_idx][1]))
+                estimate = (x - self.centers[out_idx][distr_idx][0])**2 /( 2*sigma*sigma)
+                probs.append(self.gaussian_activation(estimate))
+            probs = torch.stack(probs,1)
+            outputs.append(torch.argmax(probs, dim=-1))
+        outputs = torch.stack(outputs,1)
+        return outputs
+
+    def gaussian_activation(self, x):
+        return torch.exp(-torch.sum(x,dim=-1))
 
 
 

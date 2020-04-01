@@ -104,7 +104,7 @@ print("Average confidence on benign test examples: %f" % confidence)
 
 # FGSM
 history = {}
-for eps in np.linspace(.01, .3, 30):
+for eps in [0.01,0.1,0.3]:#np.linspace(.01, .3, 30):
     accs, confs = [], []
     for repeat in range(1):
         print("eps = %f, run %d" % (eps, repeat))

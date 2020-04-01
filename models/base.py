@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
-from utils.density_layer import PNN, Density_estimator
+from utils.density_layer import PNN, Density_estimator, Dynamic_estimator
 from configuration import conf
 from utils.conv_layers import MNIST_Conv_block, MNIST_Conv_block_pytorch
 from utils.fc_layers import FC_layer_without_w
@@ -14,6 +14,7 @@ from tqdm import tqdm
 class Base_model(torch.nn.Module, ABC):
     """docstring for Base_model"""
     def __init__(self):
+        self.freq = 10
         super(Base_model, self).__init__()
         self.build()
 
@@ -21,14 +22,14 @@ class Base_model(torch.nn.Module, ABC):
     def build(self):
         raise NotImplementedError
 
-    def train_model(self, trainloader):
+    def train_model(self, trainloader, verbose=1):
         loss_func = nn.CrossEntropyLoss() if conf.layer_type == 'FC' else nn.BCELoss()
         optimizer = optim.Adam(self.parameters())
         self.history = {'loss':[], 'test_acc':[]}
 
         for e in range(conf.num_epoch):
             loss_value = 0.0
-            enum = tqdm(enumerate(trainloader, 0))
+            enum = tqdm(enumerate(trainloader, 0)) if verbose else enumerate(trainloader, 0)
             for i, data in enum:
                 inputs, labels = data
                 inputs = inputs.view(inputs.size()[0],-1) if conf.model_type == 'NN' else inputs
@@ -36,7 +37,7 @@ class Base_model(torch.nn.Module, ABC):
 
                 classification = self(inputs)
 
-                labels = labels if conf.layer_type == 'FC' else F.one_hot(labels, 10).float() 
+                labels = labels if conf.layer_type == 'FC' else F.one_hot(labels, conf.output_units).float() 
                 loss = loss_func(classification, labels)
                 #loss += 10*(torch.sum(self.last_layer.reg))**2
                 loss.backward()
@@ -44,14 +45,16 @@ class Base_model(torch.nn.Module, ABC):
 
                 loss_value += loss.item()
 
-                if i % 100 == 0:
-                    loss_value /= 200
+                if i % self.freq == 0:
+                    loss_value /= self.freq
                     self.history['loss'].append(loss_value)
                     msg = 'Epoch :{} / {}, loss {:.4f}'.format(e+1, conf.num_epoch, loss_value)
                     #print('Epoch :{} / {}, loss {:.4f}'.format(e, conf.num_epoch, loss_value), end='\r')
                     loss_value = 0
-                    enum.set_description(msg)
-            print('')
+                    if verbose:
+                        enum.set_description(msg)
+            if verbose:
+                print('')
 
 
     def test_model(self, testloader, save_model=True):
@@ -116,11 +119,13 @@ class Linear_base_model(Base_model):
             self.layers.append(torch.nn.Linear(conf.hidden_units[idx], conf.hidden_units[idx + 1]))
 
         layer_type = conf.layer_type
-        assert layer_type in ['PNN', 'DE', 'FC'], 'last layer must be PNN or DE (Density_estimator) or FC (fully-connected) layer '
+        assert layer_type in ['PNN', 'DE', 'FC','DY'], 'last layer must be PNN or DE (Density_estimator) or FC (fully-connected) layer '
         if layer_type == 'PNN':
             last_layer = PNN(conf.hidden_units[-1], conf.output_units, num_distr=conf.num_distr)
         elif layer_type == 'DE':
             last_layer = Density_estimator(conf.hidden_units[-1], conf.output_units, num_distr=conf.num_distr)
+        elif layer_type == 'DY':
+            last_layer = Dynamic_estimator(conf.hidden_units[-1], conf.output_units, num_distr=conf.num_distr)
         elif layer_type == 'FC':
             last_layer = torch.nn.Linear(conf.hidden_units[-1], conf.output_units)
         
