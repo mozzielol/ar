@@ -92,6 +92,10 @@ class Base_model(torch.nn.Module, ABC):
             if verbose:
                 print('')
 
+            if conf.layer_type == 'DY':
+                pass
+                # self.last_layer.reset_rewards()
+
     def test_model(self, testloader, save_model=True):
         correct = 0
         total = 0
@@ -118,19 +122,30 @@ class Base_model(torch.nn.Module, ABC):
                        './ckp/num_distr={}/{}/{}_{}.pt'.format(conf.num_distr, conf.model_type, conf.dataset_name,
                                                                conf.layer_type))
 
-    def get_distr_index(self, testloader):
-        assert conf.layer_type == 'DE', 'only DE get this function at the moment'
-        predicted_index = []
-        classes = []
-        with torch.no_grad():
-            for data in testloader:
-                images, labels = data
-                images = images.view(images.size()[0], -1) if conf.model_type == 'NN' else images
-                outputs = self.index_forward(images)
-                predicted_index.append(outputs[np.arange(images.shape[0]), labels])
-                classes.append(labels)
+    def get_distr_index(self, testloader, is_loader=True):
+        assert conf.layer_type in ['DE', 'DY'], 'only DE get this function at the moment'
+        if is_loader:
+            predicted_index = []
+            classes = []
+            with torch.no_grad():
+                for data in testloader:
+                    images, labels = data
+                    images = images.view(images.size()[0], -1) if conf.model_type == 'NN' else images
+                    outputs = self.index_forward(images)
+                    predicted_index.append(outputs[np.arange(images.shape[0]), labels])
+                    classes.append(labels)
 
-        return np.concatenate(predicted_index), np.concatenate(classes)
+            return np.concatenate(predicted_index), np.concatenate(classes)
+        else:
+            images, labels = testloader
+            images = torch.from_numpy(images)
+            labels = torch.from_numpy(labels).type(torch.int64)
+            images = images.view(images.size()[0], -1) if conf.model_type == 'NN' else images
+            outputs = self.index_forward(images)
+            predicted_index = outputs[np.arange(images.shape[0]), labels]
+            classes = labels
+
+            return predicted_index, classes
 
     def index_forward(self, x):
         for layer in self.layers:

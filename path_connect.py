@@ -36,14 +36,12 @@ def compute_confidence(preds, head='FC'):
 
 
 # Load pretrained model
-HEAD = 'DE'
+HEAD = 'DY'
 FEATURE = 'NN'
 NUM_DISTR = 'num_distr=5'
 
-filename = 'history/{}_{}'.format(HEAD,NUM_DISTR)
+filename = 'history/INDEX_{}_{}.pkl'.format(HEAD,NUM_DISTR)
 history = {}
-save_his()
-
 
 model_directory = os.path.join('ckp', NUM_DISTR, FEATURE)
 conf.num_distr = NUM_DISTR[-1]
@@ -61,6 +59,10 @@ elif HEAD == 'PNN':
     CHECKPOINT = os.path.join(model_directory, 'mnist_PNN.pt')
     conf.layer_type = 'PNN'
     criterion = BCEOneHotLoss()
+elif HEAD == 'DY':
+    CHECKPOINT = os.path.join(model_directory, 'mnist_DY.pt')
+    conf.layer_type = 'DY'
+    criterion = BCEOneHotLoss()
 else:
     conf.layer_type = 'FC'
     CHECKPOINT = os.path.join(model_directory, 'mnist_FC.pt')
@@ -70,7 +72,7 @@ model = Convolutional_base_model() if FEATURE == 'CNN' else Linear_base_model()
 
 checkpoint = torch.load(CHECKPOINT)
 model.load_state_dict(checkpoint)
-model.last_layer.training = True
+# model.last_layer.training = True
 # Step 1: Load the MNIST dataset
 (x_train, y_train), (x_test, y_test), min_pixel_value, max_pixel_value = art_load_mnist()
 # Step 1a: Transpose to N x D format
@@ -104,14 +106,15 @@ print("Average confidence on benign test examples: %f" % confidence)
 
 # FGSM
 history = {}
-for eps in [0.01,0.1,0.3]:#np.linspace(.01, .3, 30):
+history['ori_idx'] = model.get_distr_index([x_test, np.argmax(y_test,axis=1)], is_loader=False)
+for eps in [0.3]:#np.linspace(.01, .3, 30):
     accs, confs = [], []
     for repeat in range(1):
         print("eps = %f, run %d" % (eps, repeat))
         # Step 6: Generate adversarial test examples
         attack = FastGradientMethod(classifier=classifier, eps=eps, eps_step=eps/3)
         x_test_adv = attack.generate(x=x_test)
-
+        history['new_idx'] = model.get_distr_index([x_test_adv, np.argmax(y_test,axis=1)], is_loader=False)
         # Step 7: Evaluate the ART classifier on adversarial test examples
         predictions = classifier.predict(x_test_adv)
         accuracy = np.sum(np.argmax(predictions, axis=1) == np.argmax(y_test, axis=1)) / len(y_test)
@@ -127,3 +130,4 @@ for eps in [0.01,0.1,0.3]:#np.linspace(.01, .3, 30):
           (eps, np.mean(accs), np.std(accs), np.mean(confs)))
 
 save_his()
+print('new distribution rate : ',history['ori_idx'][0].numpy() == history['new_idx'][0].numpy() / y_test.shape[0])

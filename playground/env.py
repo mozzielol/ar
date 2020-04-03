@@ -41,7 +41,7 @@ class Environment(object):
     def sample(self, mu, N=1000):
         lower = mu - 0.45
         upper = mu + 0.45
-        sigma = 0.1
+        sigma = 0.5
 
         samples = scipy.stats.truncnorm.rvs(
             (lower - mu) / sigma, (upper - mu) / sigma, loc=mu, scale=sigma, size=N)
