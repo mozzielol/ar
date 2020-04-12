@@ -63,46 +63,104 @@ class Base_model(torch.nn.Module, ABC):
         optimizer = optim.Adam(self.parameters())
         self.history = {'loss': [], 'test_acc': []}
 
+        def batch_train(classification, inputs, labels, loss_value, loss_func, optimizer, train_next=False,
+                        threshold=0.9):
+            if train_next and classification is not None:
+                low_confidence_samples = torch.max(classification, axis=1)[0] < threshold
+                sample_idx = low_confidence_samples
+                sample_for_next_distr = inputs[sample_idx]
+                label_for_next_distr = labels[sample_idx]
+                for l in np.unique(label_for_next_distr):
+                    self.last_layer.set_training_center(l, 1)
+                if torch.sum(sample_idx) > 0:
+                    classification = self(sample_for_next_distr)
+                else:
+                    classification = None
+                label_for_next_distr = F.one_hot(label_for_next_distr, conf.output_units).float()
+                loss = loss_func(classification, label_for_next_distr)
+                loss.backward()
+                optimizer.step()
+                loss_value += loss.item()
+                return classification, loss_value, low_confidence_samples, sample_for_next_distr, torch.argmax(label_for_next_distr,1)
+
+            labels = labels if conf.layer_type == 'FC' else F.one_hot(labels, conf.output_units).float()
+            loss = loss_func(classification, labels)
+            # loss += 10*(torch.sum(self.last_layer.reg))**2
+            loss.backward()
+            optimizer.step()
+            loss_value += loss.item()
+
+            return loss_value
+
+        for l in range(10):
+            self.last_layer.set_training_center(l, 0)
         for e in range(conf.num_epoch):
+            next_distr_rate = 0.0
             loss_value = 0.0
             enum = tqdm(enumerate(trainloader, 0)) if verbose else enumerate(trainloader, 0)
+
             for i, data in enum:
                 inputs, labels = data
                 inputs = inputs.view(inputs.size()[0], -1) if conf.model_type == 'NN' else inputs
                 optimizer.zero_grad()
-
+                for l in range(10):
+                    self.last_layer.set_training_center(l, 0)
                 classification = self(inputs)
 
-                labels = labels if conf.layer_type == 'FC' else F.one_hot(labels, conf.output_units).float()
-                loss = loss_func(classification, labels)
-                # loss += 10*(torch.sum(self.last_layer.reg))**2
-                loss.backward()
-                optimizer.step()
+                # Selection Training
+                if e > conf.num_epoch / conf.num_distr:
+                    # 1.false prediction samples
+                    # classification = classification.detach().numpy()
+                    # false_prediction_samples = np.argmax(classification, axis=1) != labels
+                    # 2. low confidence samples
 
-                loss_value += loss.item()
+                    classification, loss_value, low_confidence_samples, sample_for_next_distr, label_for_next_distr = \
+                        batch_train(classification, inputs, labels, loss_value, loss_func, optimizer, train_next=True)
+
+                    for t_idx in range(2, conf.num_distr):
+                        if e > t_idx * conf.num_epoch // conf.num_distr:
+                            classification, loss_value, low_confidence_samples, sample_for_next_distr, label_for_next_distr = \
+                                batch_train(classification, sample_for_next_distr, label_for_next_distr, loss_value,
+                                            loss_func, optimizer, train_next=True)
+                    sample_for_current_distr = inputs
+                    label_for_current_distr = labels
+                    optimizer.zero_grad()
+                    for l in np.unique(label_for_current_distr):
+                        self.last_layer.set_training_center(l, 0)
+                    if True:  # torch.sum(sample_idx) > 0:
+                        classification = self(sample_for_current_distr)
+                        loss_value = batch_train(classification, sample_for_current_distr, label_for_current_distr,
+                                                 loss_value, loss_func,
+                                                 optimizer)
+
+                    next_distr_rate += torch.sum(low_confidence_samples).float() / inputs.shape[0]
+
+
+                else:
+                    loss_value = batch_train(classification, inputs, labels, loss_value, loss_func, optimizer)
 
                 if i % self.freq == 0:
                     loss_value /= self.freq
+                    next_distr_rate /= self.freq
                     self.history['loss'].append(loss_value)
-                    msg = 'Epoch :{} / {}, loss {:.4f}'.format(e + 1, conf.num_epoch, loss_value)
+                    msg = 'Epoch :{} / {}, loss: {:.4f}, rate: {:.4f}'.format(e + 1, conf.num_epoch, loss_value,
+                                                                              next_distr_rate)
                     # print('Epoch :{} / {}, loss {:.4f}'.format(e, conf.num_epoch, loss_value), end='\r')
                     loss_value = 0
+                    next_distr_rate = 0
                     if verbose:
                         enum.set_description(msg)
             if verbose:
                 print('')
 
-            if conf.layer_type == 'DY':
-                pass
-                # self.last_layer.reset_rewards()
-
-    def test_model(self, testloader, save_model=True):
+    def test_model(self, testloader, c=0, save_model=True):
         correct = 0
         total = 0
         try:
             self.last_layer.training = False
         except:
             pass
+
         with torch.no_grad():
             for data in testloader:
                 images, labels = data

@@ -40,7 +40,7 @@ HEAD = 'DY'
 FEATURE = 'NN'
 NUM_DISTR = 'num_distr=5'
 
-filename = 'history/INDEX_{}_{}.pkl'.format(HEAD,NUM_DISTR)
+filename = 'history/INDEX_{}_{}.pkl'.format(HEAD, NUM_DISTR)
 history = {}
 
 model_directory = os.path.join('ckp', NUM_DISTR, FEATURE)
@@ -72,7 +72,7 @@ model = Convolutional_base_model() if FEATURE == 'CNN' else Linear_base_model()
 
 checkpoint = torch.load(CHECKPOINT)
 model.load_state_dict(checkpoint)
-# model.last_layer.training = True
+model.last_layer.training = False
 # Step 1: Load the MNIST dataset
 (x_train, y_train), (x_test, y_test), min_pixel_value, max_pixel_value = art_load_mnist()
 # Step 1a: Transpose to N x D format
@@ -92,7 +92,7 @@ classifier = PyTorchClassifier(
     clip_values=(min_pixel_value, max_pixel_value),
     loss=criterion,
     optimizer=optimizer,
-    input_shape=(784, ) if type(model) == Linear_base_model else (1, 28, 28),
+    input_shape=(784,) if type(model) == Linear_base_model else (1, 28, 28),
     nb_classes=10,
     preprocessing=(0.1307, 0.3081)
 )
@@ -106,15 +106,15 @@ print("Average confidence on benign test examples: %f" % confidence)
 
 # FGSM
 history = {}
-history['ori_idx'] = model.get_distr_index([x_test, np.argmax(y_test,axis=1)], is_loader=False)
-for eps in [0.3]:#np.linspace(.01, .3, 30):
+history['ori_idx'] = model.get_distr_index([x_test, np.argmax(y_test, axis=1)], is_loader=False)
+for eps in [0.3, .01, .02]:  # np.linspace(.01, .3, 30):
     accs, confs = [], []
     for repeat in range(1):
         print("eps = %f, run %d" % (eps, repeat))
         # Step 6: Generate adversarial test examples
-        attack = FastGradientMethod(classifier=classifier, eps=eps, eps_step=eps/3)
+        attack = FastGradientMethod(classifier=classifier, eps=eps, eps_step=eps / 3)
         x_test_adv = attack.generate(x=x_test)
-        history['new_idx'] = model.get_distr_index([x_test_adv, np.argmax(y_test,axis=1)], is_loader=False)
+        history['new_idx'+str(eps)] = model.get_distr_index([x_test_adv, np.argmax(y_test, axis=1)], is_loader=False)
         # Step 7: Evaluate the ART classifier on adversarial test examples
         predictions = classifier.predict(x_test_adv)
         accuracy = np.sum(np.argmax(predictions, axis=1) == np.argmax(y_test, axis=1)) / len(y_test)
@@ -130,4 +130,6 @@ for eps in [0.3]:#np.linspace(.01, .3, 30):
           (eps, np.mean(accs), np.std(accs), np.mean(confs)))
 
 save_his()
-print('new distribution rate : ',history['ori_idx'][0].numpy() == history['new_idx'][0].numpy() / y_test.shape[0])
+for eps in [0.3, .01, .02]:
+    print('Old distribution rate : ',
+          np.sum(history['ori_idx'][0].numpy() == history['new_idx'+str(eps)][0].numpy()) / y_test.shape[0])

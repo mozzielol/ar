@@ -131,6 +131,90 @@ class Dynamic_estimator(torch.nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         # self.dense = nn.Linear(in_features,out_features)
+        self.training_centers = {}
+        for i in range(out_features):
+            self.centers[i] = []
+            self.training_centers[i] = []
+            for idx in range(num_distr):
+                mean = torch.nn.Parameter(torch.rand(in_features, requires_grad=True))
+                self.register_parameter('mean%d%d' % (idx, i), mean)
+                rho = torch.nn.Parameter(torch.rand(in_features, requires_grad=True))
+                self.register_parameter('rho%d%d' % (idx, i), rho)
+                self.centers[i].append([mean, rho])
+                if idx == 0:
+                    self.training_centers[i].append(True)
+                else:
+                    self.training_centers[i].append(False)
+
+    def set_training_center(self, class_idx, center_idx):
+        for idx, c in enumerate(self.training_centers[class_idx]):
+            if idx == center_idx:
+                self.training_centers[class_idx][idx] = True
+            else:
+                self.training_centers[class_idx][idx] = False
+
+    def forward(self, x):
+        outputs = []
+        # self.reg = []
+        for out_idx in range(self.out_features):
+            probs = []
+            training_idx = np.argmax(self.training_centers[out_idx])
+            for distr_idx in range(self.num_distr):
+                sigma = torch.log(1 + torch.exp(self.centers[out_idx][distr_idx][1]))
+                estimate = (x - self.centers[out_idx][distr_idx][0]) ** 2 / (2 * sigma * sigma)
+                P = self.gaussian_activation(estimate)
+                if self.training:
+                    if distr_idx == training_idx:
+                        probs.append(P)
+                else:
+                    probs.append(P)
+
+            if self.training:
+                outputs.append(probs[0])
+            else:
+                probs = torch.stack(probs, 1)
+                probs = torch.max(probs,1)[0]
+                # probs = torch.sum(probs, dim=-1) / (torch.sum(probs, dim=-1)
+                #                                   + self.num_distr - self.num_distr * torch.max(probs, dim=-1)[0])
+                outputs.append(probs)
+        outputs = torch.stack(outputs, 1)
+        return outputs
+
+    # uti
+    # agitaion
+    # activaties
+    # MCM to create the entropy
+    # keep updating based on the activaties of the users
+    # Find the change point
+
+    def get_distr_index(self, x):
+        outputs = []
+        for out_idx in range(self.out_features):
+            probs = []
+            for distr_idx in range(self.num_distr):
+                sigma = torch.log(1 + torch.exp(self.centers[out_idx][distr_idx][1]))
+                estimate = (x - self.centers[out_idx][distr_idx][0]) ** 2 / (2 * sigma * sigma)
+                probs.append(self.gaussian_activation(estimate))
+            probs = torch.stack(probs, 1)
+            outputs.append(torch.argmax(probs, dim=-1))
+        outputs = torch.stack(outputs, 1)
+        return outputs
+
+    def gaussian_activation(self, x):
+        return torch.exp(-torch.sum(x, dim=-1))
+
+
+"""
+
+class Dynamic_estimator(torch.nn.Module):
+    def __init__(self, in_features, out_features=200, num_distr=1):
+        super().__init__()
+        self.training = True
+        self.centers = {}
+        self.num_distr = num_distr
+        self.in_features = in_features
+        self.out_features = out_features
+        # self.dense = nn.Linear(in_features,out_features)
         self.rewards = {}
         self.top_reward = 500
         self.threshold = 0.8
@@ -214,3 +298,5 @@ class Dynamic_estimator(torch.nn.Module):
 
     def gaussian_activation(self, x):
         return torch.exp(-torch.sum(x, dim=-1))
+
+"""
