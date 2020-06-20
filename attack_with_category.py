@@ -20,7 +20,7 @@ def load_mnist_by_category(num_category=10):
     testset = torchvision.datasets.MNIST('../data', train=False, transform=transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]))
 
-    if 1 < num_category < 10:
+    if 1 < num_category <= 10:
         for dataset in [trainset, testset]:
             indices = dataset.targets < num_category
             dataset.targets = dataset.targets[indices]
@@ -169,7 +169,7 @@ def get_combinations():
         'Head': ['FC', 'DE'],
         'Feature': ['NN'],
         'Num_distr': [3],  # Please fill a single number in this list to plot
-        'Num_classes': np.arange(2, 10),
+        'Num_classes': np.arange(2, 11),
     }
     flat = [[(k, v) for v in vs] for k, vs in params.items()]
     return [dict(items) for items in itertools.product(*flat)], params
@@ -188,7 +188,6 @@ def plot_hisotry():
     sns.set()
     _, params = get_combinations()
     history = {}
-
 
     for feat in params['Feature']:
         history[feat] = {}
