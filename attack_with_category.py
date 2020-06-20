@@ -73,7 +73,7 @@ def train_combin(args):
     FEATURE = args['Feature']
     NUM_DISTR = args['Num_distr']
     NUM_CLASSES = args['Num_classes']
-
+    conf.output_units = str(NUM_CLASSES)
     filename = './history/category/{}_{}_num_distr={}.pkl'.format(HEAD, NUM_CLASSES, NUM_DISTR)
     conf.num_distr = str(NUM_DISTR)
 
@@ -126,7 +126,7 @@ def train_combin(args):
         loss=criterion,
         optimizer=optimizer,
         input_shape=(784,) if type(model) == Linear_base_model else (1, 28, 28),
-        nb_classes=10,
+        nb_classes=NUM_CLASSES,
         preprocessing=(0.1307, 0.3081)
     )
     history = {}
@@ -189,47 +189,48 @@ def plot_hisotry():
     _, params = get_combinations()
     history = {}
 
-    for eps in eps_choice:
-        for feat in params['Feature']:
-            history[feat] = {}
+
+    for feat in params['Feature']:
+        history[feat] = {}
+        for head in params['Head']:
             plt.clf()
-            for head in params['Head']:
+            for eps in eps_choice:
                 history[feat][head] = []
                 for num_class in params['Num_classes']:
                     filename = './history/category/{}_{}_num_distr={}.pkl'.format(head, num_class,
                                                                                   params['Num_distr'][0])
                     history[feat][head].append(load_his(filename)[eps])
-                plt.plot(history[feat][head], label=head)
+                plt.plot(history[feat][head], label=str(eps))
             plt.xticks(np.arange(len(params['Num_classes'])), params['Num_classes'])
             plt.xlabel('Number of Classes')
             plt.ylabel('Accuracy')
-            title = 'Eps: {}, Architecture {}'.format(eps, params['Feature'])
+            title = 'Eps: {}, Architecture {} Type {}'.format(eps, params['Feature'], head)
             plt.title(title)
             plt.legend()
             plt.savefig('./res_plots/{}.png'.format(title))
 
-    for feat in params['Feature']:
-        for num_class in params['Num_classes']:
-            plt.clf()
-            for head in params['Head']:
-                acc = []
-                for eps in eps_choice:
-                    filename = './history/category/{}_{}_num_distr={}.pkl'.format(head, num_class,
-                                                                                  params['Num_distr'][0])
-                    acc.append(load_his(filename)[eps])
-                plt.plot(acc, label=head)
-            plt.xlabel('Eps')
-            plt.ylabel('Accuracy')
-            plt.xticks(np.arange(len(eps_choice)), eps_choice)
-            title = 'Eps: {}, Architecture {} Num_classes : {}'.format(eps, params['Feature'], num_class)
-            plt.title(title)
-            plt.legend()
-            plt.savefig('./res_plots/{}.png'.format(title))
+    # for feat in params['Feature']:
+    #     for num_class in params['Num_classes']:
+    #         plt.clf()
+    #         for head in params['Head']:
+    #             acc = []
+    #             for eps in eps_choice:
+    #                 filename = './history/category/{}_{}_num_distr={}.pkl'.format(head, num_class,
+    #                                                                               params['Num_distr'][0])
+    #                 acc.append(load_his(filename)[eps])
+    #             plt.plot(acc, label=head)
+    #         plt.xlabel('Eps')
+    #         plt.ylabel('Accuracy')
+    #         plt.xticks(np.arange(len(eps_choice)), eps_choice)
+    #         title = 'Eps: {}, Architecture {} Num_classes : {}'.format(eps, params['Feature'], num_class)
+    #         plt.title(title)
+    #         plt.legend()
+    #         plt.savefig('./res_plots/{}.png'.format(title))
 
     return history
 
 
 if __name__ == '__main__':
-    eps_choice = [0.01, .1, .2]
+    eps_choice = [.1, .2, .3]
     # run()
     plot_hisotry()
