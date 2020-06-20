@@ -109,6 +109,13 @@ def train_combin(args):
         x_train = x_train.transpose((0, 3, 1, 2)).astype(np.float32)
         x_test = x_test.transpose((0, 3, 1, 2)).astype(np.float32)
 
+    train_indices = np.where(np.argmax(y_train, axis=1) < NUM_CLASSES)
+    test_incides = np.where(np.argmax(y_test, axis=1) < NUM_CLASSES)
+    x_train = x_train[train_indices]
+    y_train = y_train[train_indices]
+    x_test = x_test[test_incides]
+    y_test = y_test[test_incides]
+
     # Step 2a: Define the optimizer
     optimizer = optim.Adam(model.parameters())
 
@@ -122,16 +129,16 @@ def train_combin(args):
         nb_classes=10,
         preprocessing=(0.1307, 0.3081)
     )
-
+    history = {}
     # Step 5: Evaluate the ART classifier on benign test examples
     predictions = classifier.predict(x_test)
     accuracy = np.sum(np.argmax(predictions, axis=1) == np.argmax(y_test, axis=1)) / len(y_test)
     print("Accuracy on benign test examples: {}%".format(accuracy * 100))
     confidence = np.mean(compute_confidence(predictions, HEAD))
     print("Average confidence on benign test examples: %f" % confidence)
-
+    history['initial_acc'] = accuracy
+    history['inital_conf'] = confidence
     # FGSM
-    history = {}
     for eps in eps_choice:  # np.linspace(.01, .3, 30):
         accs, confs = [], []
         for repeat in range(1):
@@ -161,7 +168,7 @@ def get_combinations():
     params = {
         'Head': ['FC', 'DE'],
         'Feature': ['NN'],
-        'Num_distr': [5],  # Please fill a single number in this list to plot
+        'Num_distr': [3],  # Please fill a single number in this list to plot
         'Num_classes': np.arange(2, 10),
     }
     flat = [[(k, v) for v in vs] for k, vs in params.items()]
@@ -201,9 +208,28 @@ def plot_hisotry():
             plt.legend()
             plt.savefig('./res_plots/{}.png'.format(title))
 
+    for feat in params['Feature']:
+        for num_class in params['Num_classes']:
+            plt.clf()
+            for head in params['Head']:
+                acc = []
+                for eps in eps_choice:
+                    filename = './history/category/{}_{}_num_distr={}.pkl'.format(head, num_class,
+                                                                                  params['Num_distr'][0])
+                    acc.append(load_his(filename)[eps])
+                plt.plot(acc, label=head)
+            plt.xlabel('Eps')
+            plt.ylabel('Accuracy')
+            plt.xticks(np.arange(len(eps_choice)), eps_choice)
+            title = 'Eps: {}, Architecture {} Num_classes : {}'.format(eps, params['Feature'], num_class)
+            plt.title(title)
+            plt.legend()
+            plt.savefig('./res_plots/{}.png'.format(title))
+
     return history
 
+
 if __name__ == '__main__':
-    eps_choice = [0.3, .01, .02]
+    eps_choice = [0.01, .1, .2]
     # run()
     plot_hisotry()
