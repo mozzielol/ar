@@ -7,7 +7,7 @@ from torch.optim.lr_scheduler import StepLR
 from utils.density_layer import PNN, Density_estimator, Dynamic_estimator
 from configuration import conf
 from utils.conv_layers import MNIST_Conv_block, MNIST_Conv_block_pytorch
-from utils.fc_layers import FC_layer_without_w
+import os
 from abc import ABC, abstractmethod
 from tqdm import tqdm
 
@@ -24,7 +24,7 @@ class Base_model(torch.nn.Module, ABC):
     def build(self):
         raise NotImplementedError
 
-    def train_model(self, trainloader, verbose=1):
+    def train_model(self, trainloader, learned_imgs=None, verbose=1):
         loss_func = nn.CrossEntropyLoss() if conf.layer_type == 'FC' else nn.BCELoss()
         optimizer = optim.Adam(self.parameters())
         self.history = {'loss': [], 'test_acc': []}
@@ -35,6 +35,10 @@ class Base_model(torch.nn.Module, ABC):
             for i, data in enum:
                 inputs, labels = data
                 inputs = inputs.view(inputs.size()[0], -1) if conf.model_type == 'NN' else inputs
+                if learned_imgs is not None:
+                    learned_inputs, learned_targets = next(iter(learned_imgs))
+                    inputs = torch.cat([inputs, learned_inputs])
+                    labels = torch.cat([labels, learned_targets])
                 optimizer.zero_grad()
 
                 classification = self(inputs)
@@ -81,7 +85,8 @@ class Base_model(torch.nn.Module, ABC):
                 loss.backward()
                 optimizer.step()
                 loss_value += loss.item()
-                return classification, loss_value, low_confidence_samples, sample_for_next_distr, torch.argmax(label_for_next_distr,1)
+                return classification, loss_value, low_confidence_samples, sample_for_next_distr, torch.argmax(
+                    label_for_next_distr, 1)
 
             labels = labels if conf.layer_type == 'FC' else F.one_hot(labels, conf.output_units).float()
             loss = loss_func(classification, labels)
@@ -153,7 +158,7 @@ class Base_model(torch.nn.Module, ABC):
             if verbose:
                 print('')
 
-    def test_model(self, testloader, c=0, save_model=True):
+    def test_model(self, testloader, directory=None, save_model=True):
         correct = 0
         total = 0
         try:
@@ -176,8 +181,13 @@ class Base_model(torch.nn.Module, ABC):
         self.history['test_acc'].append(correct / total)
 
         if save_model:
+            path = './ckp/{}/num_distr={}/{}/'.format(directory, conf.num_distr, conf.model_type)
+            try:
+                os.stat(path)
+            except:
+                os.makedirs(path)
             torch.save(self.state_dict(),
-                       './ckp/num_distr={}/{}/{}_{}.pt'.format(conf.num_distr, conf.model_type, conf.dataset_name,
+                       './ckp/{}/num_distr={}/{}/{}_{}.pt'.format(directory, conf.num_distr, conf.model_type, conf.dataset_name,
                                                                conf.layer_type))
 
     def get_distr_index(self, testloader, is_loader=True):
@@ -208,10 +218,42 @@ class Base_model(torch.nn.Module, ABC):
     def index_forward(self, x):
         for layer in self.layers:
             x = layer(x).clamp(min=0)
-
         x = self.last_layer.get_distr_index(x)
-
         return x
+
+    def summarize_rules(self, verbose=1):
+        self.last_layer.training = False
+        loss_func = nn.BCELoss()
+        # summarize all distributions into one
+        inputs = torch.randn((10, conf.hidden_units[0]), requires_grad=True, dtype=torch.float)
+        # targets = torch.from_numpy(np.random.randint(low=0, high=10, size=(conf.batch_size, 1)))
+        targets = torch.from_numpy(np.arange(10))
+        optimizer = optim.Adam([inputs])  # default
+        best_inputs = None
+        # summarize
+        for e in range(conf.num_epoch):
+            loss_value = 0.0
+            for i in range(500):
+                optimizer.zero_grad()
+
+                classification = self(inputs)
+
+                labels = targets if conf.layer_type == 'FC' else F.one_hot(targets, conf.output_units).float()
+                loss = loss_func(classification, labels)
+                loss.backward()
+                optimizer.step()
+
+                loss_value += loss.item()
+
+                if i % self.freq == 0:
+                    loss_value /= self.freq
+                    self.history['loss'].append(loss_value)
+                    print('Epoch :{} / {}, loss {:.4f}'.format(e, conf.num_epoch, loss_value), end='\r')
+                    loss_value = 0
+                    best_inputs = inputs.data.clone()
+            if verbose:
+                print('')
+        return best_inputs, targets
 
 
 class Linear_base_model(Base_model):

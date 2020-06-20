@@ -8,7 +8,7 @@ from utils.visualise import *
 
 trainloader, testloader = load_mnist()
 
-layer_type = ['DY']
+layer_type = ['DE']
 
 for t in layer_type:
     conf.layer_type = t

@@ -20,10 +20,10 @@ import numpy as np
 """
 
 class Config(object):
-	def __init__(self, config_file=None, base_path = './'):
-		default_path = base_path + 'default.ini'
+	def __init__(self, config_file=None, base_path = './configuration/settings/'):
+		default_file =  './default.ini'
 		self.cfg = configparser.ConfigParser()
-		self.cfg.read(default_path)
+		self.cfg.read(default_file)
 		if config_file is not None:
 			path = base_path + config_file
 			self.cfg.read(path)
