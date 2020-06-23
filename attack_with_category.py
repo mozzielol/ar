@@ -14,7 +14,7 @@ import torchvision
 from torchvision import transforms
 
 
-def load_mnist_by_category(num_category=10):
+def load_mnist_by_category(num_category=10, ratio=1.0):
     trainset = torchvision.datasets.MNIST('../data', train=True, download=True, transform=transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]))
     testset = torchvision.datasets.MNIST('../data', train=False, transform=transforms.Compose(
@@ -25,9 +25,14 @@ def load_mnist_by_category(num_category=10):
             indices = dataset.targets < num_category
             dataset.targets = dataset.targets[indices]
             dataset.data = dataset.data[indices, ...]
+    if 0 < ratio < 1.0:
+        torch.manual_seed(1234)
+        indices = torch.randperm(len(trainset.targets))[:int(round(ratio * len(trainset.targets)))]
+        trainset.targets = trainset.targets[indices]
+        trainset.data = trainset.data[indices, ...]
 
-        trainloader = torch.utils.data.DataLoader(trainset, batch_size=conf.batch_size, shuffle=True, num_workers=0)
-        testloader = torch.utils.data.DataLoader(testset, batch_size=conf.batch_size, shuffle=True, num_workers=0)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=conf.batch_size, shuffle=True, num_workers=0)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=conf.batch_size, shuffle=True, num_workers=0)
 
     return trainloader, testloader
 
@@ -74,7 +79,7 @@ def train_combin(args):
     NUM_DISTR = args['Num_distr']
     NUM_CLASSES = args['Num_classes']
     conf.output_units = str(NUM_CLASSES)
-    filename = './history/category/{}_{}_num_distr={}.pkl'.format(HEAD, NUM_CLASSES, NUM_DISTR)
+    filename = './history/category/ratio={}_{}_{}_num_distr={}.pkl'.format(args['ratio'], HEAD, NUM_CLASSES, NUM_DISTR)
     conf.num_distr = str(NUM_DISTR)
 
     if FEATURE == 'CNN':
@@ -96,7 +101,7 @@ def train_combin(args):
         criterion = nn.CrossEntropyLoss()
 
     model = Convolutional_base_model() if FEATURE == 'CNN' else Linear_base_model()
-    trainloader, testloader = load_mnist_by_category(NUM_CLASSES)
+    trainloader, testloader = load_mnist_by_category(NUM_CLASSES, args['ratio'])
     model.train_model(trainloader, verbose=0)
     model.test_model(testloader, directory='category')
     # Step 1: Load the MNIST dataset
@@ -166,10 +171,11 @@ def train_combin(args):
 def get_combinations():
     import itertools
     params = {
-        'Head': ['FC', 'DE'],
+        'Head': ['FC'],
         'Feature': ['NN'],
         'Num_distr': [3],  # Please fill a single number in this list to plot
         'Num_classes': np.arange(2, 11),
+        'ratio': np.linspace(0.1, 1, num=10, endpoint=True)
     }
     flat = [[(k, v) for v in vs] for k, vs in params.items()]
     return [dict(items) for items in itertools.product(*flat)], params
@@ -188,25 +194,25 @@ def plot_hisotry():
     sns.set()
     _, params = get_combinations()
     history = {}
-
-    for feat in params['Feature']:
-        history[feat] = {}
-        for head in params['Head']:
-            plt.clf()
-            for eps in eps_choice:
-                history[feat][head] = []
-                for num_class in params['Num_classes']:
-                    filename = './history/category/{}_{}_num_distr={}.pkl'.format(head, num_class,
-                                                                                  params['Num_distr'][0])
-                    history[feat][head].append(load_his(filename)[eps])
-                plt.plot(history[feat][head], label=str(eps))
-            plt.xticks(np.arange(len(params['Num_classes'])), params['Num_classes'])
-            plt.xlabel('Number of Classes')
-            plt.ylabel('Accuracy')
-            title = 'Eps: {}, Architecture {} Type {}'.format(eps, params['Feature'], head)
-            plt.title(title)
-            plt.legend()
-            plt.savefig('./res_plots/{}.png'.format(title))
+    for ratio in params['ratio']:
+        for feat in params['Feature']:
+            history[feat] = {}
+            for head in params['Head']:
+                plt.clf()
+                for eps in eps_choice:
+                    history[feat][head] = []
+                    for num_class in params['Num_classes']:
+                        filename = './history/category/ratio={}_{}_{}_num_distr={}.pkl'.format(ratio, head, num_class,
+                                                                                      params['Num_distr'][0])
+                        history[feat][head].append(load_his(filename)[eps])
+                    plt.plot(history[feat][head], label=str(eps))
+                plt.xticks(np.arange(len(params['Num_classes'])), params['Num_classes'])
+                plt.xlabel('Number of Classes')
+                plt.ylabel('Accuracy')
+                title = 'Eps: {}, Architecture: {} Type: {} Ratio: {}'.format(eps, params['Feature'], head, ratio)
+                plt.title(title)
+                plt.legend()
+                plt.savefig('./res_plots/{}.png'.format(title))
 
     # for feat in params['Feature']:
     #     for num_class in params['Num_classes']:
@@ -231,5 +237,5 @@ def plot_hisotry():
 
 if __name__ == '__main__':
     eps_choice = [.1, .2, .3]
-    # run()
+    run()
     plot_hisotry()
