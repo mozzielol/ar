@@ -2,13 +2,13 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
-
+import torchvision
 import os
 import numpy as np
 from scipy.special import softmax
 from models.base import Linear_base_model, Convolutional_base_model
 from configuration import conf
-
+from torchvision import transforms
 from art.attacks import FastGradientMethod, ProjectedGradientDescent
 from art.classifiers import PyTorchClassifier
 from art.utils import load_mnist as art_load_mnist
@@ -19,6 +19,35 @@ try:
     import cPickle as pickle
 except ImportError:  # python 3.x
     import pickle
+
+
+def load_mnist_by_category(num_category=10, ratio=1.0, storage=10000):
+    trainset = torchvision.datasets.MNIST('../data', train=True, download=True, transform=transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]))
+    testset = torchvision.datasets.MNIST('../data', train=False, transform=transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]))
+
+    if 1 < num_category <= 10:
+        for dataset in [trainset, testset]:
+            indices = dataset.targets < num_category
+            dataset.targets = dataset.targets[indices]
+            dataset.data = dataset.data[indices, ...]
+
+    if 0 < ratio < 1.0:
+        torch.manual_seed(1234)
+        indices = torch.randperm(len(trainset.targets))[:int(round(ratio * len(trainset.targets)))]
+        trainset.targets = trainset.targets[indices]
+        trainset.data = trainset.data[indices, ...]
+
+    if 0 < storage < len(trainset.data):
+        torch.manual_seed(1234)
+        indices = torch.randperm(len(trainset.targets))[:storage]
+        trainset.targets = trainset.targets[indices]
+        trainset.data = trainset.data[indices, ...]
+
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=conf.batch_size, shuffle=True, num_workers=0)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=conf.batch_size, shuffle=True, num_workers=0)
+    return trainloader, testloader
 
 
 def save_his():

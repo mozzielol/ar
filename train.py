@@ -8,8 +8,9 @@ from utils.visualise import *
 
 trainloader, testloader = load_mnist()
 
-layer_type = ['DE']
-
+layer_type = ['FC']
+conf.model_type, conf.hidden_units = 'CNN', '100'
+conf.num_distr = '10'
 for t in layer_type:
     conf.layer_type = t
     if conf.model_type == 'CNN':
@@ -20,4 +21,4 @@ for t in layer_type:
     model.train_model(trainloader)
     print(model)
 
-    model.test_model(testloader)
+    model.test_model(testloader, directory='CNN_model', save_model=True)

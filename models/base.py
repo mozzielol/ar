@@ -5,6 +5,7 @@ import numpy as np
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 from utils.density_layer import PNN, Density_estimator, Dynamic_estimator
+from utils.fc_layers import FC_layer_without_w
 from configuration import conf
 from utils.conv_layers import MNIST_Conv_block, MNIST_Conv_block_pytorch
 import os
@@ -25,7 +26,7 @@ class Base_model(torch.nn.Module, ABC):
         raise NotImplementedError
 
     def train_model(self, trainloader, learned_imgs=None, verbose=1):
-        loss_func = nn.CrossEntropyLoss() if conf.layer_type == 'FC' else nn.BCELoss()
+        loss_func = nn.CrossEntropyLoss() if conf.layer_type.startswith('FC') else nn.BCELoss(reduction='sum')
         optimizer = optim.Adam(self.parameters())
         self.history = {'loss': [], 'test_acc': []}
 
@@ -43,7 +44,7 @@ class Base_model(torch.nn.Module, ABC):
 
                 classification = self(inputs)
 
-                labels = labels if conf.layer_type == 'FC' else F.one_hot(labels, conf.output_units).float()
+                labels = labels if conf.layer_type.startswith('FC') else F.one_hot(labels, conf.output_units).float()
                 loss = loss_func(classification, labels)
                 # loss += 10*(torch.sum(self.last_layer.reg))**2
                 loss.backward()
@@ -274,15 +275,20 @@ class Linear_base_model(Base_model):
 
         layer_type = conf.layer_type
         assert layer_type in ['PNN', 'DE', 'FC',
-                              'DY', 'Sigmoid'], 'last layer must be PNN or DE (Density_estimator) or FC (fully-connected) layer '
+                              'DY', 'Sigmoid', 'Sigmoid_no_weights', 'FC_no_weights'], \
+            'last layer must be PNN or DE (Density_estimator) or FC (fully-connected) layer '
         if layer_type == 'PNN':
             last_layer = PNN(conf.hidden_units[-1], conf.output_units, num_distr=conf.num_distr)
         elif layer_type == 'DE':
             last_layer = Density_estimator(conf.hidden_units[-1], conf.output_units, num_distr=conf.num_distr)
         elif layer_type == 'DY':
             last_layer = Dynamic_estimator(conf.hidden_units[-1], conf.output_units, num_distr=conf.num_distr)
-        elif layer_type == 'FC' or 'Sigmoid':
+        elif layer_type == 'FC' or layer_type == 'Sigmoid':
             last_layer = torch.nn.Linear(conf.hidden_units[-1], conf.output_units)
+        elif layer_type == 'Sigmoid_no_weights':
+            last_layer = FC_layer_without_w(conf.hidden_units[-1], conf.output_units)
+        elif layer_type == 'FC_no_weights':
+            last_layer = FC_layer_without_w(conf.hidden_units[-1], conf.output_units)
 
         self.last_layer = last_layer
 
@@ -291,7 +297,7 @@ class Linear_base_model(Base_model):
             x = layer(x).clamp(min=0)
 
         x = self.last_layer(x)
-        if conf.layer_type == 'Sigmoid':
+        if conf.layer_type.startswith('Sigmoid'):
             x = F.sigmoid(x)
         return x
 
@@ -307,8 +313,9 @@ class Convolutional_base_model(Base_model):
     def build(self):
         self.history = {'loss': [], 'test_acc': []}
         self.layers = torch.nn.ModuleList([])
-        conv_block = MNIST_Conv_block_pytorch()
+        conv_block = MNIST_Conv_block()
         self.layers.append(conv_block)
+
         hidden_units = np.insert(conf.hidden_units, 0, conv_block.output_dim, axis=0)
         for idx in range(len(hidden_units) - 1):
             self.layers.append(torch.nn.Linear(hidden_units[idx], hidden_units[idx + 1]))
@@ -330,4 +337,35 @@ class Convolutional_base_model(Base_model):
             x = layer(x).clamp(min=0)
 
         x = self.last_layer(x)
+        return x
+
+
+class Pytorch_CNN_Model(Base_model):
+    """docstring for Linear_base_model"""
+
+    def __init__(self):
+        super(Pytorch_CNN_Model, self).__init__()
+        assert conf.model_type == 'CNN', 'model_type must be CNN for CNN model, get model_type %s' % conf.model_type
+        self.build()
+
+    def build(self):
+        self.conv1 = nn.Conv2d(1, 32, 3, 1)
+        self.conv2 = nn.Conv2d(32, 64, 3, 1)
+        self.dropout1 = nn.Dropout2d(0.25)
+        self.dropout2 = nn.Dropout2d(0.5)
+        self.fc1 = nn.Linear(9216, 128)
+        self.fc2 = nn.Linear(128, conf.output_units)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = F.max_pool2d(x, 2)
+        x = self.dropout1(x)
+        x = torch.flatten(x, 1)
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = self.dropout2(x)
+        x = self.fc2(x)
         return x

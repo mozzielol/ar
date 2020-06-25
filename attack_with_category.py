@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import os
 import numpy as np
 from scipy.special import softmax
-from models.base import Linear_base_model, Convolutional_base_model
+from models.base import Linear_base_model, Convolutional_base_model, Pytorch_CNN_Model
 from configuration import conf
 from art.attacks import FastGradientMethod, ProjectedGradientDescent
 from art.classifiers import PyTorchClassifier
@@ -107,7 +107,7 @@ def train_combin(args):
         conf.layer_type = 'FC'
         criterion = nn.CrossEntropyLoss()
 
-    model = Convolutional_base_model() if FEATURE == 'CNN' else Linear_base_model()
+    model = Pytorch_CNN_Model() if FEATURE == 'CNN' else Linear_base_model()
     trainloader, testloader = load_mnist_by_category(NUM_CLASSES, args['ratio'])
     model.train_model(trainloader, verbose=0)
     model.test_model(testloader, directory='category')
@@ -179,7 +179,7 @@ def get_combinations():
     import itertools
     params = {
         'Head': ['FC'],
-        'Feature': ['NN'],
+        'Feature': ['CNN'],
         'Num_distr': [3],  # Please fill a single number in this list to plot
         'Num_classes': np.arange(2, 11),
         'ratio': np.linspace(0.01, 1, num=10, endpoint=True)

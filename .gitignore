@@ -1,2 +1,6 @@
 .DS_Store
 .idea
+./ckp/CNN_model
+./ckp/logits
+./res_plots/imgs
+./res_plots/random_noise
