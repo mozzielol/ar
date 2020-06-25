@@ -1,7 +1,6 @@
 import torch
 import torch.optim as optim
 import torch.nn as nn
-import torch.nn.functional as F
 
 import os
 import numpy as np
@@ -39,11 +38,14 @@ def compute_confidence(preds, head='FC'):
 
 
 # Load pretrained model
-HEAD = 'FC'
+HEAD = 'Sigmoid'
 FEATURE = 'NN'
 NUM_DISTR = 'num_distr=1'
 eps_choices = np.linspace(0.01, 0.3, num=30, endpoint=True)
-filename = 'history/INDEX_{}_Sigmoid_{}.pkl'.format(HEAD, NUM_DISTR)
+if HEAD == 'FC':
+    filename = 'history/INDEX_FC_{}.pkl'.format(NUM_DISTR)
+else:
+    filename = 'history/INDEX_FC_Sigmoid_{}.pkl'.format(NUM_DISTR)
 history = {}
 
 model_directory = os.path.join('ckp', NUM_DISTR, FEATURE)
@@ -54,22 +56,14 @@ if FEATURE == 'CNN':
 else:
     conf.model_type, conf.hidden_units = 'NN', '784,200,200'
 
-if HEAD == 'DE':
-    CHECKPOINT = os.path.join(model_directory, 'mnist_DE.pt')
-    conf.layer_type = 'DE'
-    criterion = BCEOneHotLoss()
-elif HEAD == 'PNN':
-    CHECKPOINT = os.path.join(model_directory, 'mnist_PNN.pt')
-    conf.layer_type = 'PNN'
-    criterion = BCEOneHotLoss()
-elif HEAD == 'DY':
-    CHECKPOINT = os.path.join(model_directory, 'mnist_DY.pt')
-    conf.layer_type = 'DY'
-    criterion = BCEOneHotLoss()
-else:
-    conf.layer_type = 'FC'
-    CHECKPOINT = os.path.join(model_directory, 'Sigmoid_mnist_FC.pt')
+
+conf.layer_type = HEAD
+if HEAD == 'FC':
+    CHECKPOINT = os.path.join(model_directory, 'mnist_FC.pt')
     criterion = nn.CrossEntropyLoss()
+else:
+    CHECKPOINT = os.path.join(model_directory, 'Sigmoid_mnist_FC.pt')
+    criterion = BCEOneHotLoss()
 
 model = Convolutional_base_model() if FEATURE == 'CNN' else Linear_base_model()
 
@@ -135,29 +129,51 @@ for eps in eps_choices:
 
 save_his()
 
-# import matplotlib.pyplot as plt
-# import seaborn as sns; sns.set()
-# fc = load_his('./history/INDEX_FC_num_distr=1.pkl')
-# sigmoid = load_his('./history/INDEX_FC_Sigmoid_num_distr=1.pkl')
-# sigmoid_res = []
-# fc_res = []
-# for eps in eps_choices:
-#     sigmoid_res.append(sigmoid[eps])
-#     fc_res.append(fc[eps])
-# plt.plot(fc_res, label='softmax + crossentropy')
-# plt.plot(sigmoid_res, label='sigmoid + binary-crossentropy')
-# # plt.xlim(eps_choices[0], eps_choices[-1])
-# ticks = []
-# for i in range(len(eps_choices)):
-#     if i % 5 ==0:
-#         ticks.append(str(eps_choices[i])[:4])
-#     else:
-#         ticks.append(None)
-# plt.xticks(np.arange(len(eps_choices)), ticks)
-# plt.xlabel('Attack strength (eps)')
-# plt.ylabel('Accuracy')
-# plt.legend()
-# plt.savefig('./res_plots/FC_and_Sigmoid.png')
-# for eps in [0.3, .1, .2]:
-#     print('Old distribution rate : ',
-#           np.sum(history['ori_idx'][0].numpy() == history['new_idx'+str(eps)][0].numpy()) / y_test.shape[0])
+import matplotlib.pyplot as plt
+import seaborn as sns; sns.set()
+fc = load_his('./history/INDEX_FC_num_distr=1.pkl')
+sigmoid = load_his('./history/INDEX_FC_Sigmoid_num_distr=1.pkl')
+fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True)
+
+sigmoid_res = []
+fc_res = []
+for eps in eps_choices:
+    sigmoid_res.append(sigmoid[eps][0])
+    fc_res.append(fc[eps][0])
+ax1.plot(fc_res, label='softmax + crossentropy')
+ax1.plot(sigmoid_res, label='sigmoid + binary-crossentropy')
+# plt.xlim(eps_choices[0], eps_choices[-1])
+ticks = []
+for i in range(len(eps_choices)):
+    if i % 5 ==0:
+        ticks.append(str(eps_choices[i])[:4])
+    else:
+        ticks.append(None)
+plt.xticks(np.arange(len(eps_choices)), ticks)
+ax1.set_xlabel('Attack strength (eps)')
+ax1.set_ylabel('Accuracy')
+plt.legend()
+
+sigmoid_res = []
+fc_res = []
+for eps in eps_choices:
+    sigmoid_res.append(sigmoid[eps][1])
+    fc_res.append(fc[eps][1])
+ax2.plot(fc_res, label='softmax + crossentropy')
+ax2.plot(sigmoid_res, label='sigmoid + binary-crossentropy')
+# plt.xlim(eps_choices[0], eps_choices[-1])
+ticks = []
+for i in range(len(eps_choices)):
+    if i % 5 ==0:
+        ticks.append(str(eps_choices[i])[:4])
+    else:
+        ticks.append(None)
+plt.xticks(np.arange(len(eps_choices)), ticks)
+ax2.set_xlabel('Attack strength (eps)')
+ax2.set_ylabel('Confidence')
+plt.legend()
+plt.tight_layout()
+plt.savefig('./res_plots/FC_and_Sigmoid.png')
+for eps in [0.3, .1, .2]:
+    print('Old distribution rate : ',
+          np.sum(history['ori_idx'][0].numpy() == history['new_idx'+str(eps)][0].numpy()) / y_test.shape[0])

@@ -7,6 +7,7 @@ Following properties can be changed:
 	- model_type
 	- hidden_units
 """
+conf.model_type, conf.hidden_units = 'CNN', '100'
 
 print(conf.num_distr)
 conf.num_distr = '10'

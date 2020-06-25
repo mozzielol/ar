@@ -5,7 +5,6 @@ import torch.nn as nn
 from configuration import conf
 
 
-
 def load_cifar10():
     """
     Test on CIFAR 10
@@ -29,52 +28,19 @@ def load_cifar10():
 
 
 def load_mnist():
-
     trainloader = torch.utils.data.DataLoader(
         torchvision.datasets.MNIST('../data', train=True, download=True,
-                       transform=transforms.Compose([
-                           transforms.ToTensor(),
-                           transforms.Normalize((0.1307,), (0.3081,))
-                       ])),
+                                   transform=transforms.Compose([
+                                       transforms.ToTensor(),
+                                       transforms.Normalize((0.1307,), (0.3081,))
+                                   ])),
         batch_size=conf.batch_size, shuffle=True, num_workers=0)
 
     testloader = torch.utils.data.DataLoader(
         torchvision.datasets.MNIST('../data', train=False, transform=transforms.Compose([
-                           transforms.ToTensor(),
-                           transforms.Normalize((0.1307,), (0.3081,))
-                       ])),
+            transforms.ToTensor(),
+            transforms.Normalize((0.1307,), (0.3081,))
+        ])),
         batch_size=conf.batch_size, shuffle=True, num_workers=0)
 
     return trainloader, testloader
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

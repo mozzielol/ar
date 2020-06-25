@@ -14,7 +14,7 @@ import torchvision
 from torchvision import transforms
 
 
-def load_mnist_by_category(num_category=10, ratio=1.0):
+def load_mnist_by_category(num_category=10, ratio=1.0, storage=10000):
     trainset = torchvision.datasets.MNIST('../data', train=True, download=True, transform=transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]))
     testset = torchvision.datasets.MNIST('../data', train=False, transform=transforms.Compose(
@@ -25,16 +25,23 @@ def load_mnist_by_category(num_category=10, ratio=1.0):
             indices = dataset.targets < num_category
             dataset.targets = dataset.targets[indices]
             dataset.data = dataset.data[indices, ...]
+
     if 0 < ratio < 1.0:
         torch.manual_seed(1234)
         indices = torch.randperm(len(trainset.targets))[:int(round(ratio * len(trainset.targets)))]
         trainset.targets = trainset.targets[indices]
         trainset.data = trainset.data[indices, ...]
 
+    if 0 < storage < len(trainset.data):
+        torch.manual_seed(1234)
+        indices = torch.randperm(len(trainset.targets))[:storage]
+        trainset.targets = trainset.targets[indices]
+        trainset.data = trainset.data[indices, ...]
+
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=conf.batch_size, shuffle=True, num_workers=0)
     testloader = torch.utils.data.DataLoader(testset, batch_size=conf.batch_size, shuffle=True, num_workers=0)
-
     return trainloader, testloader
+
 
 
 np.random.seed(2020)
@@ -141,7 +148,7 @@ def train_combin(args):
     print("Accuracy on benign test examples: {}%".format(accuracy * 100))
     confidence = np.mean(compute_confidence(predictions, HEAD))
     print("Average confidence on benign test examples: %f" % confidence)
-    history['initial_acc'] = accuracy
+    history[0] = accuracy
     history['inital_conf'] = confidence
     # FGSM
     for eps in eps_choice:  # np.linspace(.01, .3, 30):
@@ -149,7 +156,7 @@ def train_combin(args):
         for repeat in range(1):
             print("eps = %f, run %d" % (eps, repeat))
             # Step 6: Generate adversarial test examples
-            attack = FastGradientMethod(classifier=classifier, eps=eps, eps_step=eps / 3)
+            attack = FastGradientMethod(classifier=classifier, eps=eps, eps_step=eps / 3, batch_size=2560)
             x_test_adv = attack.generate(x=x_test)
             # Step 7: Evaluate the ART classifier on adversarial test examples
             predictions = classifier.predict(x_test_adv)
@@ -175,7 +182,7 @@ def get_combinations():
         'Feature': ['NN'],
         'Num_distr': [3],  # Please fill a single number in this list to plot
         'Num_classes': np.arange(2, 11),
-        'ratio': np.linspace(0.1, 1, num=10, endpoint=True)
+        'ratio': np.linspace(0.01, 1, num=10, endpoint=True)
     }
     flat = [[(k, v) for v in vs] for k, vs in params.items()]
     return [dict(items) for items in itertools.product(*flat)], params
@@ -190,26 +197,27 @@ def run():
 
 def plot_hisotry():
     import matplotlib.pyplot as plt
-    import seaborn as sns;
+    import seaborn as sns
     sns.set()
     _, params = get_combinations()
     history = {}
-    for ratio in params['ratio']:
-        for feat in params['Feature']:
-            history[feat] = {}
-            for head in params['Head']:
+
+    for feat in params['Feature']:
+        history[feat] = {}
+        for head in params['Head']:
+            for eps in eps_choice:
                 plt.clf()
-                for eps in eps_choice:
+                for ratio in params['ratio']:
                     history[feat][head] = []
                     for num_class in params['Num_classes']:
                         filename = './history/category/ratio={}_{}_{}_num_distr={}.pkl'.format(ratio, head, num_class,
-                                                                                      params['Num_distr'][0])
+                                                                                               params['Num_distr'][0])
                         history[feat][head].append(load_his(filename)[eps])
-                    plt.plot(history[feat][head], label=str(eps))
+                    plt.plot(history[feat][head], label='Ratio= ' + str(ratio)[:3], linestyle='--')
                 plt.xticks(np.arange(len(params['Num_classes'])), params['Num_classes'])
                 plt.xlabel('Number of Classes')
                 plt.ylabel('Accuracy')
-                title = 'Eps: {}, Architecture: {} Type: {} Ratio: {}'.format(eps, params['Feature'], head, ratio)
+                title = 'Initial accuracy, Model type: {}'.format(head)
                 plt.title(title)
                 plt.legend()
                 plt.savefig('./res_plots/{}.png'.format(title))
@@ -236,6 +244,6 @@ def plot_hisotry():
 
 
 if __name__ == '__main__':
-    eps_choice = [.1, .2, .3]
+    eps_choice = np.linspace(0.01, 0.3, num=15, endpoint=True)
     run()
-    plot_hisotry()
+    # plot_hisotry()

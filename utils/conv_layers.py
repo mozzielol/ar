@@ -39,6 +39,3 @@ class MNIST_Conv_block_pytorch(nn.Module):
         x = torch.flatten(x, 1)
 
         return x
-
-
-        
