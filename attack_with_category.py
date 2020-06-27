@@ -204,28 +204,53 @@ def plot_hisotry():
     _, params = get_combinations()
     history = {}
 
-    for feat in params['Feature']:
-        history[feat] = {}
-        for head in params['Head']:
-            for eps in eps_choice:
-                plt.clf()
-                for ratio in params['ratio']:
-                    history[feat][head] = []
-                    for num_class in params['Num_classes']:
-                        filename = './history/category/storage={}_ratio={}_{}_{}_num_distr={}.pkl'.format(params['storage'], ratio, head,
-                                                                                                          num_class,
-                                                                                                          params[
-                                                                                                              'Num_distr'][
-                                                                                                              0])
-                        history[feat][head].append(load_his(filename)[eps])
-                    plt.plot(history[feat][head], label='Ratio= ' + str(ratio)[:3], linestyle='--')
-                plt.xticks(np.arange(len(params['Num_classes'])), params['Num_classes'])
-                plt.xlabel('Number of Classes')
-                plt.ylabel('Accuracy')
-                title = 'Initial accuracy, Model type: {}'.format(head)
-                plt.title(title)
-                plt.legend()
-                plt.savefig('./res_plots/{}.png'.format(title))
+    # for feat in params['Feature']:
+    #     history[feat] = {}
+    #     for head in params['Head']:
+    #         for eps in eps_choice:
+    #             plt.clf()
+    #             for ratio in params['ratio']:
+    #                 history[feat][head] = []
+    #                 for num_class in params['Num_classes']:
+    #                     filename = './history/category/storage={}_ratio={}_{}_{}_num_distr={}.pkl'.format(params['storage'], ratio, head,
+    #                                                                                                       num_class,
+    #                                                                                                       params[
+    #                                                                                                           'Num_distr'][
+    #                                                                                                           0])
+    #                     history[feat][head].append(load_his(filename)[eps])
+    #                 plt.plot(history[feat][head], label='Ratio= ' + str(ratio)[:3], linestyle='--')
+    #             plt.xticks(np.arange(len(params['Num_classes'])), params['Num_classes'])
+    #             plt.xlabel('Number of Classes')
+    #             plt.ylabel('Accuracy')
+    #             title = 'Initial accuracy, Model type: {}'.format(head)
+    #             plt.title(title)
+    #             plt.legend()
+    #             plt.savefig('./res_plots/{}.png'.format(title))
+
+    for storage in params['storage']:
+        for ratio in params['ratio']:
+            for feat in params['Feature']:
+                history[feat] = {}
+                for head in params['Head']:
+                    plt.clf()
+                    for eps in eps_choice:
+                        history[feat][head] = []
+                        for num_class in params['Num_classes']:
+                            filename = './history/category/storage={}_ratio={}_{}_{}_num_distr={}.pkl'.format(
+                                storage, ratio, head,
+                                num_class,
+                                params[
+                                    'Num_distr'][
+                                    0])
+                            history[feat][head].append(load_his(filename)[eps])
+                        plt.plot(history[feat][head], label=str(eps)[:4])
+                    plt.xticks(np.arange(len(params['Num_classes'])), params['Num_classes'])
+                    plt.xlabel('Number of Classes')
+                    plt.ylabel('Accuracy')
+                    title = 'Architecture: {} Type: {} Ratio: {}'.format(params['Feature'], head, ratio)
+                    plt.title(title)
+                    plt.legend()
+                    plt.savefig('./res_plots/storage={}_{}.png'.format(storage, title))
 
     # for feat in params['Feature']:
     #     for num_class in params['Num_classes']:
@@ -250,5 +275,5 @@ def plot_hisotry():
 
 if __name__ == '__main__':
     eps_choice = np.linspace(0.01, 0.3, num=15, endpoint=True)
-    run()
-    # plot_hisotry()
+    # run()
+    plot_hisotry()
