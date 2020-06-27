@@ -15,7 +15,7 @@ from torchvision import transforms
 from utils.data_loader import to_gpu
 
 
-def load_mnist_by_category(num_category=10, ratio=1.0, storage=100000):
+def load_mnist_by_category(num_category=10, ratio=1.0, storage=-1):
     trainset = torchvision.datasets.MNIST('../data', train=True, download=True, transform=transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]))
     testset = torchvision.datasets.MNIST('../data', train=False, transform=transforms.Compose(
@@ -41,7 +41,7 @@ def load_mnist_by_category(num_category=10, ratio=1.0, storage=100000):
 
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=conf.batch_size, shuffle=True, num_workers=0)
     testloader = torch.utils.data.DataLoader(testset, batch_size=conf.batch_size, shuffle=True, num_workers=0)
-    return to_gpu(trainloader), to_gpu(testloader)
+    return trainloader, testloader
 
 
 np.random.seed(2020)
@@ -86,7 +86,7 @@ def train_combin(args):
     NUM_DISTR = args['Num_distr']
     NUM_CLASSES = args['Num_classes']
     conf.output_units = str(NUM_CLASSES)
-    filename = './history/category/ratio={}_{}_{}_num_distr={}.pkl'.format(args['ratio'], HEAD, NUM_CLASSES, NUM_DISTR)
+    filename = './history/category/storage={}_ratio={}_{}_{}_num_distr={}.pkl'.format(args['storage'], args['ratio'], HEAD, NUM_CLASSES, NUM_DISTR)
     conf.num_distr = str(NUM_DISTR)
 
     if FEATURE == 'CNN':
@@ -179,11 +179,12 @@ def train_combin(args):
 def get_combinations():
     import itertools
     params = {
-        'Head': ['DE'],
+        'Head': ['DE', 'PNN'],
         'Feature': ['NN'],
         'Num_distr': [3],  # Please fill a single number in this list to plot
-        'Num_classes': [11],#np.arange(2, 11),
+        'Num_classes': np.arange(2, 11),
         'ratio': [1],  # np.linspace(0.01, 1, num=10, endpoint=True)
+        'storage': [-1, 10000],
     }
     flat = [[(k, v) for v in vs] for k, vs in params.items()]
     return [dict(items) for items in itertools.product(*flat)], params
@@ -211,8 +212,11 @@ def plot_hisotry():
                 for ratio in params['ratio']:
                     history[feat][head] = []
                     for num_class in params['Num_classes']:
-                        filename = './history/category/ratio={}_{}_{}_num_distr={}.pkl'.format(ratio, head, num_class,
-                                                                                               params['Num_distr'][0])
+                        filename = './history/category/storage={}_ratio={}_{}_{}_num_distr={}.pkl'.format(params['storage'], ratio, head,
+                                                                                                          num_class,
+                                                                                                          params[
+                                                                                                              'Num_distr'][
+                                                                                                              0])
                         history[feat][head].append(load_his(filename)[eps])
                     plt.plot(history[feat][head], label='Ratio= ' + str(ratio)[:3], linestyle='--')
                 plt.xticks(np.arange(len(params['Num_classes'])), params['Num_classes'])

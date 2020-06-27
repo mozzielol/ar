@@ -11,7 +11,7 @@ from utils.conv_layers import MNIST_Conv_block, MNIST_Conv_block_pytorch
 import os
 from abc import ABC, abstractmethod
 from tqdm import tqdm
-
+from utils.data_loader import to_gpu
 
 class Base_model(torch.nn.Module, ABC):
     """docstring for Base_model"""
@@ -35,6 +35,7 @@ class Base_model(torch.nn.Module, ABC):
             enum = tqdm(enumerate(trainloader, 0)) if verbose else enumerate(trainloader, 0)
             for i, data in enum:
                 inputs, labels = data
+                inputs, labels = to_gpu(inputs), to_gpu(labels)
                 inputs = inputs.view(inputs.size()[0], -1) if conf.model_type == 'NN' else inputs
                 if learned_imgs is not None:
                     learned_inputs, learned_targets = next(iter(learned_imgs))
