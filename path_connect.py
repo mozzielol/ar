@@ -68,7 +68,7 @@ def compute_confidence(preds, head='FC'):
 
 
 # Load pretrained model
-HEAD = 'FC'
+HEAD = 'DE'
 FEATURE = 'NN'
 NUM_DISTR = 'num_distr=1'
 eps_choices = np.linspace(0.01, 0.3, num=30, endpoint=True)

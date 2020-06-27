@@ -36,7 +36,7 @@ def load_mnist_by_category(num_category=10):
             dataset.data = dataset.data[indices, ...]
 
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=conf.batch_size, shuffle=True, num_workers=0)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=conf.batch_size, shuffle=True, num_workers=0)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=conf.batch_size, shuffle=False, num_workers=0)
     return trainloader, testloader
 
 
@@ -55,16 +55,18 @@ class BCEOneHotLoss(nn.BCELoss):
         return super(BCEOneHotLoss, self).forward(input, target.float())
 
 
-def compute_confidence(preds, head='FC'):
-    cls_idx = np.argmax(preds) == FAKE
-    preds = preds[cls_idx]
-    zero_class = preds[:, 0]
-    one_class = preds[:, 1]
+def compute_confidence(preds, a):
+    cls_idx = np.argmax(preds, axis=1) == FAKE
+    false_prediction = preds[cls_idx]
+    # false_prediction = softmax(preds[cls_idx], axis=1)
+    zero_class = false_prediction[:, 0]
+    one_class = false_prediction[:, 1]
+    attack_history.append(cls_idx)
     return zero_class, one_class
 
 
 # Load pretrained model
-HEAD = 'Sigmoid'
+HEAD = 'PNN'
 FEATURE = 'NN'
 NUM_DISTR = 'num_distr=1'
 NUM_CLASSES = 2
@@ -72,11 +74,10 @@ TRUE = 0
 FAKE = 1
 conf.output_units = str(NUM_CLASSES)
 eps_choices = np.linspace(0.01, 0.3, num=30, endpoint=True)
-if HEAD == 'FC':
-    filename = 'history/INDEX_FC_{}.pkl'.format(NUM_DISTR)
-else:
-    filename = 'history/INDEX_FC_Sigmoid_{}.pkl'.format(NUM_DISTR)
+filename = 'history_logits_analysation.pkl'
+
 history = {}
+attack_history = []
 
 model_directory = os.path.join('ckp', NUM_DISTR, FEATURE)
 conf.num_distr = NUM_DISTR[-1]
@@ -127,7 +128,7 @@ classifier = PyTorchClassifier(
     loss=criterion,
     optimizer=optimizer,
     input_shape=(784,) if type(model) == Linear_base_model else (1, 28, 28),
-    nb_classes=10,
+    nb_classes=2,
     preprocessing=(0.1307, 0.3081)
 )
 history = {'eps': [], 0: [], 1 : []}
@@ -156,36 +157,29 @@ for eps in eps_choices:
         accuracy = np.sum(np.argmax(predictions, axis=1) == np.argmax(y_test, axis=1)) / len(y_test)
         print("Accuracy on adversarial test examples: {}%".format(accuracy * 100))
         confidence = compute_confidence(predictions, HEAD)
-        history['eps'] += [0] * len(confidence[0])
+        history['eps'] += [eps] * len(confidence[0])
         history[0] += confidence[0].tolist()
         history[1] += confidence[1].tolist()
 
 
+att_idx = []
+for i in attack_history:
+    att_idx.append(np.where(i==True))
+for i in att_idx[0][0]:
+    for j in att_idx:
+        print(i)
+        if i in j[0]:
+            flag = True
+        else:
+            print('a')
+            break
+
 save_his()
 
-# import matplotlib.pyplot as plt
-# import seaborn as sns; sns.set()
-# fc = load_his('./history/INDEX_FC_num_distr=1.pkl')
-# sigmoid = load_his('./history/INDEX_FC_Sigmoid_num_distr=1.pkl')
-# sigmoid_res = []
-# fc_res = []
-# for eps in eps_choices:
-#     sigmoid_res.append(sigmoid[eps])
-#     fc_res.append(fc[eps])
-# plt.plot(fc_res, label='softmax + crossentropy')
-# plt.plot(sigmoid_res, label='sigmoid + binary-crossentropy')
-# # plt.xlim(eps_choices[0], eps_choices[-1])
-# ticks = []
-# for i in range(len(eps_choices)):
-#     if i % 5 ==0:
-#         ticks.append(str(eps_choices[i])[:4])
-#     else:
-#         ticks.append(None)
-# plt.xticks(np.arange(len(eps_choices)), ticks)
-# plt.xlabel('Attack strength (eps)')
-# plt.ylabel('Accuracy')
-# plt.legend()
-# plt.savefig('./res_plots/FC_and_Sigmoid.png')
-# for eps in [0.3, .1, .2]:
-#     print('Old distribution rate : ',
-#           np.sum(history['ori_idx'][0].numpy() == history['new_idx'+str(eps)][0].numpy()) / y_test.shape[0])
+import pandas as pd
+df = pd.DataFrame(history)
+import matplotlib.pyplot as plt
+import seaborn as sns; sns.set()
+df = df.melt('eps', var_name='class',  value_name='data')
+sns.lineplot(x='eps', y='data', hue='class', data=df)
+plt.savefig('./res_plots/logits.png')

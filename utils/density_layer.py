@@ -68,7 +68,6 @@ class Density_estimator(torch.nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         # self.dense = nn.Linear(in_features,out_features)
-
         for i in range(out_features):
             self.centers[i] = []
             for idx in range(num_distr):

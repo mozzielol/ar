@@ -4,6 +4,9 @@ import torchvision.transforms as transforms
 import torch.nn as nn
 from configuration import conf
 
+def to_gpu(data):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    return data.to(device)
 
 def load_cifar10():
     """

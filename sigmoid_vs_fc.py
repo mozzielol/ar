@@ -150,6 +150,7 @@ fc_no_weights = load_his('history/INDEX_FC_no_weights_num_distr=1.pkl')
 sigmoid_no_weights = load_his('history/INDEX_Sigmoid_no_weights_num_distr=1.pkl')
 fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True)
 
+
 sigmoid_res = []
 fc_res = []
 fc_no_w = []
@@ -159,8 +160,8 @@ for eps in eps_choices:
     fc_res.append(fc[eps][0])
     fc_no_w.append(fc_no_weights[eps][0])
     sigmoid_no_w.append(sigmoid_no_weights[eps][0])
-ax1.plot(fc_res, label='softmax + CE')
-ax1.plot(sigmoid_res, label='sigmoid + BCE')
+#ax1.plot(fc_res, label='softmax + CE')
+#ax1.plot(sigmoid_res, label='sigmoid + BCE')
 ax1.plot(fc_no_w, label='softmax + CE + unit wegihts')
 ax1.plot(sigmoid_no_w, label='sigmoid + BCE + unit wegihts')
 # plt.xlim(eps_choices[0], eps_choices[-1])
@@ -184,10 +185,11 @@ for eps in eps_choices:
     fc_res.append(fc[eps][1])
     fc_no_w.append(fc_no_weights[eps][1])
     sigmoid_no_w.append(sigmoid_no_weights[eps][1])
-ax2.plot(fc_res, label='softmax + CE')
-ax2.plot(sigmoid_res, label='sigmoid + BCE')
+#ax2.plot(fc_res, label='softmax + CE')
+#ax2.plot(sigmoid_res, label='sigmoid + BCE')
 ax2.plot(fc_no_w, label='softmax + CE + unit wegihts')
 ax2.plot(sigmoid_no_w, label='sigmoid + BCE + unit wegihts')
+ax2.legend(loc='upper right')
 # plt.xlim(eps_choices[0], eps_choices[-1])
 ticks = []
 for i in range(len(eps_choices)):
@@ -198,9 +200,9 @@ for i in range(len(eps_choices)):
 plt.xticks(np.arange(len(eps_choices)), ticks)
 ax2.set_xlabel('Attack strength (eps)')
 ax2.set_ylabel('Confidence')
-plt.legend()
 plt.tight_layout()
-plt.savefig('./res_plots/FC_and_Sigmoid.png')
+#plt.savefig('./res_plots/FC_and_Sigmoid.png')
+plt.savefig('./res_plots/FC_and_Sigmoid_no_weights.png')
 for eps in [0.3, .1, .2]:
     print('Old distribution rate : ',
           np.sum(history['ori_idx'][0].numpy() == history['new_idx'+str(eps)][0].numpy()) / y_test.shape[0])

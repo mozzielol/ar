@@ -12,9 +12,10 @@ from art.classifiers import PyTorchClassifier
 from art.utils import load_mnist as art_load_mnist
 import torchvision
 from torchvision import transforms
+from utils.data_loader import to_gpu
 
 
-def load_mnist_by_category(num_category=10, ratio=1.0, storage=10000):
+def load_mnist_by_category(num_category=10, ratio=1.0, storage=100000):
     trainset = torchvision.datasets.MNIST('../data', train=True, download=True, transform=transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]))
     testset = torchvision.datasets.MNIST('../data', train=False, transform=transforms.Compose(
@@ -40,8 +41,7 @@ def load_mnist_by_category(num_category=10, ratio=1.0, storage=10000):
 
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=conf.batch_size, shuffle=True, num_workers=0)
     testloader = torch.utils.data.DataLoader(testset, batch_size=conf.batch_size, shuffle=True, num_workers=0)
-    return trainloader, testloader
-
+    return to_gpu(trainloader), to_gpu(testloader)
 
 
 np.random.seed(2020)
@@ -108,8 +108,9 @@ def train_combin(args):
         criterion = nn.CrossEntropyLoss()
 
     model = Pytorch_CNN_Model() if FEATURE == 'CNN' else Linear_base_model()
+    model = to_gpu(model)
     trainloader, testloader = load_mnist_by_category(NUM_CLASSES, args['ratio'])
-    model.train_model(trainloader, verbose=0)
+    model.train_model(trainloader, verbose=1)
     model.test_model(testloader, directory='category')
     # Step 1: Load the MNIST dataset
     (x_train, y_train), (x_test, y_test), min_pixel_value, max_pixel_value = art_load_mnist()
@@ -178,11 +179,11 @@ def train_combin(args):
 def get_combinations():
     import itertools
     params = {
-        'Head': ['FC'],
-        'Feature': ['CNN'],
+        'Head': ['DE'],
+        'Feature': ['NN'],
         'Num_distr': [3],  # Please fill a single number in this list to plot
-        'Num_classes': np.arange(2, 11),
-        'ratio': np.linspace(0.01, 1, num=10, endpoint=True)
+        'Num_classes': [11],#np.arange(2, 11),
+        'ratio': [1],  # np.linspace(0.01, 1, num=10, endpoint=True)
     }
     flat = [[(k, v) for v in vs] for k, vs in params.items()]
     return [dict(items) for items in itertools.product(*flat)], params

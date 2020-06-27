@@ -26,7 +26,7 @@ class Base_model(torch.nn.Module, ABC):
         raise NotImplementedError
 
     def train_model(self, trainloader, learned_imgs=None, verbose=1):
-        loss_func = nn.CrossEntropyLoss() if conf.layer_type.startswith('FC') else nn.BCELoss(reduction='sum')
+        loss_func = nn.CrossEntropyLoss() if conf.layer_type.startswith('FC') else nn.BCELoss()
         optimizer = optim.Adam(self.parameters())
         self.history = {'loss': [], 'test_acc': []}
 
@@ -45,8 +45,11 @@ class Base_model(torch.nn.Module, ABC):
                 classification = self(inputs)
 
                 labels = labels if conf.layer_type.startswith('FC') else F.one_hot(labels, conf.output_units).float()
-                loss = loss_func(classification, labels)
-                # loss += 10*(torch.sum(self.last_layer.reg))**2
+                # l2_norm = 0.
+                # for para_idx, param in enumerate(self.last_layer.named_parameters()):
+                #     if param[0].startswith('rho'):
+                #         l2_norm += torch.norm(torch.log(1 + torch.exp(param[1])))
+                loss = loss_func(classification, labels) # + l2_norm
                 loss.backward()
                 optimizer.step()
 
@@ -189,8 +192,9 @@ class Base_model(torch.nn.Module, ABC):
             except:
                 os.makedirs(path)
             torch.save(self.state_dict(),
-                       './ckp/{}/num_distr={}/{}/{}_{}.pt'.format(directory, conf.num_distr, conf.model_type, conf.dataset_name,
-                                                               conf.layer_type))
+                       './ckp/{}/num_distr={}/{}/{}_{}.pt'.format(directory, conf.num_distr, conf.model_type,
+                                                                  conf.dataset_name,
+                                                                  conf.layer_type))
         return correct / total, np.concatenate(precictions)
 
     def get_distr_index(self, testloader, is_loader=True):
