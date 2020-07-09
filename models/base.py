@@ -13,6 +13,7 @@ from abc import ABC, abstractmethod
 from tqdm import tqdm
 from utils.data_loader import to_gpu
 
+
 class Base_model(torch.nn.Module, ABC):
     """docstring for Base_model"""
 
@@ -25,9 +26,13 @@ class Base_model(torch.nn.Module, ABC):
     def build(self):
         raise NotImplementedError
 
-    def train_model(self, trainloader, learned_imgs=None, verbose=1):
+    def train_model(self, trainloader, learned_imgs=None, verbose=1, weight_decay=0):
         loss_func = nn.CrossEntropyLoss() if conf.layer_type.startswith('FC') else nn.BCELoss()
-        optimizer = optim.Adam(self.parameters())
+        param_config = []
+        for layer in self.layers:
+            param_config.append({'params': layer.parameters()})
+        param_config.append({'params': self.last_layer.parameters(), 'weight_decay': weight_decay})
+        optimizer = optim.Adam(param_config)
         self.history = {'loss': [], 'test_acc': []}
 
         for e in range(conf.num_epoch):
@@ -50,7 +55,7 @@ class Base_model(torch.nn.Module, ABC):
                 # for para_idx, param in enumerate(self.last_layer.named_parameters()):
                 #     if param[0].startswith('rho'):
                 #         l2_norm += torch.norm(torch.log(1 + torch.exp(param[1])))
-                loss = loss_func(classification, labels) # + l2_norm
+                loss = loss_func(classification, labels)  # + l2_norm
                 loss.backward()
                 optimizer.step()
 

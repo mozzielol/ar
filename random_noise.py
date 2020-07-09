@@ -31,6 +31,7 @@ class AddGaussianNoise(object):
     def __repr__(self):
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
 
+
 def load_mnist_by_category(num_category=10, ratio=1.0, noise_eps=0.5):
     trainset = torchvision.datasets.MNIST('../data', train=True, download=True, transform=transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]))
@@ -54,7 +55,6 @@ def load_mnist_by_category(num_category=10, ratio=1.0, noise_eps=0.5):
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=conf.batch_size, shuffle=True, num_workers=0)
     testloader = torch.utils.data.DataLoader(testset, batch_size=conf.batch_size, shuffle=True, num_workers=0)
     return trainloader, testloader
-
 
 
 np.random.seed(2020)
@@ -99,7 +99,8 @@ def train_combin(args):
     NUM_DISTR = args['Num_distr']
     NUM_CLASSES = args['Num_classes']
     conf.output_units = str(NUM_CLASSES)
-    filename = './history/random_noise/ratio={}_{}_{}_num_distr={}.pkl'.format(args['ratio'], HEAD, NUM_CLASSES, NUM_DISTR)
+    filename = './history/random_noise/ratio={}_{}_{}_num_distr={}.pkl'.format(args['ratio'], HEAD, NUM_CLASSES,
+                                                                               NUM_DISTR)
     conf.num_distr = str(NUM_DISTR)
 
     if FEATURE == 'CNN':
@@ -123,7 +124,7 @@ def train_combin(args):
     model = Convolutional_base_model() if FEATURE == 'CNN' else Linear_base_model()
     trainloader, testloader = load_mnist_by_category(NUM_CLASSES, args['ratio'])
     model.train_model(trainloader, verbose=0)
-    history = {'acc':[], 'conf':[]}
+    history = {'acc': [], 'conf': []}
     for eps in eps_choice:
         trainloader, testloader = load_mnist_by_category(NUM_CLASSES, args['ratio'], eps)
         test_acc, predictions = model.test_model(testloader, directory='random_noise')
@@ -145,11 +146,12 @@ def get_combinations():
         'Head': ['FC', 'PNN', 'DE'],
         'Feature': ['NN'],
         'Num_distr': [3],  # Please fill a single number in this list to plot
-        'Num_classes': [10], #np.arange(2, 11),
-        'ratio': [1], # np.linspace(0.01, 1, num=10, endpoint=True)
+        'Num_classes': [10],  # np.arange(2, 11),
+        'ratio': [1],  # np.linspace(0.01, 1, num=10, endpoint=True)
     }
     flat = [[(k, v) for v in vs] for k, vs in params.items()]
     return [dict(items) for items in itertools.product(*flat)], params
+
 
 def run():
     combinations, _ = get_combinations()
@@ -162,7 +164,8 @@ def plot_history():
     combinations, params = get_combinations()
     fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True)
     for head in params['Head']:
-        filename = './history/random_noise/ratio={}_{}_{}_num_distr={}.pkl'.format(params['ratio'][0], head, params['Num_classes'][0],
+        filename = './history/random_noise/ratio={}_{}_{}_num_distr={}.pkl'.format(params['ratio'][0], head,
+                                                                                   params['Num_classes'][0],
                                                                                    params['Num_distr'][0])
         history = load_his(filename)
         ax1.plot(history['acc'], label=head)
@@ -176,7 +179,7 @@ def plot_history():
         plt.legend()
     ticks = []
     for i in range(len(eps_choice)):
-        if i % 10 == 0 or i == len(eps_choice) - 1:
+        if i % 5 == 0 or i == len(eps_choice) - 1:
             ticks.append(str(eps_choice[i])[:4])
         else:
             ticks.append(None)
@@ -187,6 +190,6 @@ def plot_history():
 
 
 if __name__ == '__main__':
-    eps_choice = np.linspace(0, 3., num=30, endpoint=True)
+    eps_choice = np.linspace(0, .3, num=15, endpoint=True)
     # run()
     plot_history()
