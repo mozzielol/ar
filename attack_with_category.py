@@ -86,7 +86,8 @@ def train_combin(args):
     NUM_DISTR = args['Num_distr']
     NUM_CLASSES = args['Num_classes']
     conf.output_units = str(NUM_CLASSES)
-    filename = './history/category/storage={}_ratio={}_{}_{}_num_distr={}.pkl'.format(args['storage'], args['ratio'], HEAD, NUM_CLASSES, NUM_DISTR)
+    filename = './history/category/storage={}_ratio={}_{}_{}_num_distr={}_eps={}.pkl'\
+        .format(args['storage'], args['ratio'], HEAD, NUM_CLASSES, NUM_DISTR, len(eps_choice))
     conf.num_distr = str(NUM_DISTR)
 
     if FEATURE == 'CNN':
@@ -154,8 +155,30 @@ def train_combin(args):
     # FGSM
     for eps in eps_choice:  # np.linspace(.01, .3, 30):
         accs, confs = [], []
-        for repeat in range(1):
+        for repeat in range(10):
             print("eps = %f, run %d" % (eps, repeat))
+
+            ########################################################################
+            model = Pytorch_CNN_Model() if FEATURE == 'CNN' else Linear_base_model()
+            model = to_gpu(model)
+            trainloader, testloader = load_mnist_by_category(NUM_CLASSES, args['ratio'])
+            model.train_model(trainloader, verbose=0)
+            model.test_model(testloader, directory='category')
+
+            # Step 2a: Define the optimizer
+            optimizer = optim.Adam(model.parameters())
+
+            # Step 3: Create the ART classifier
+            classifier = PyTorchClassifier(
+                model=model,
+                clip_values=(min_pixel_value, max_pixel_value),
+                loss=criterion,
+                optimizer=optimizer,
+                input_shape=(784,) if type(model) == Linear_base_model else (1, 28, 28),
+                nb_classes=NUM_CLASSES,
+                preprocessing=(0.1307, 0.3081)
+            )
+            ########################################################################
             # Step 6: Generate adversarial test examples
             attack = FastGradientMethod(classifier=classifier, eps=eps, eps_step=eps / 3, batch_size=2560)
             x_test_adv = attack.generate(x=x_test)
@@ -168,7 +191,7 @@ def train_combin(args):
 
             accs.append(accuracy)
             confs.append(confidence)
-            history[eps] = accs
+        history[eps] = accs
 
         print("eps = %f, mean accuracy on adversarial test examples: %f ~ %f, mean confidence %f" %
               (eps, np.mean(accs), np.std(accs), np.mean(confs)))
@@ -236,20 +259,20 @@ def plot_hisotry():
                     for eps in eps_choice:
                         history[feat][head] = []
                         for num_class in params['Num_classes']:
-                            filename = './history/category/storage={}_ratio={}_{}_{}_num_distr={}.pkl'.format(
+                            filename = './history/category/storage={}_ratio={}_{}_{}_num_distr={}_eps={}.pkl'.format(
                                 storage, ratio, head,
                                 num_class,
                                 params[
                                     'Num_distr'][
-                                    0])
-                            history[feat][head].append(load_his(filename)[eps])
+                                    0], len(eps_choice))
+                            history[feat][head].append(np.mean(load_his(filename)[eps]))
                         plt.plot(history[feat][head], label=str(eps)[:4])
                     plt.xticks(np.arange(len(params['Num_classes'])), params['Num_classes'])
                     plt.xlabel('Number of Classes')
                     plt.ylabel('Accuracy')
                     title = 'Architecture: {} Type: {} Ratio: {}'.format(params['Feature'], head, ratio)
                     plt.title(title)
-                    plt.legend()
+                    plt.legend(loc='lower left')
                     plt.savefig('./res_plots/storage={}_{}.png'.format(storage, title))
 
     # for feat in params['Feature']:
@@ -274,6 +297,6 @@ def plot_hisotry():
 
 
 if __name__ == '__main__':
-    eps_choice = np.linspace(0.01, 0.3, num=15, endpoint=True)
-    # run()
-    plot_hisotry()
+    eps_choice = np.linspace(0.01, 0.1, num=10, endpoint=True)
+    run()
+    # plot_hisotry()
